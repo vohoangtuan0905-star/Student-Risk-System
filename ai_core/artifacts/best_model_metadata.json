@@ -1,0 +1,17 @@
+{
+  "best_model_name": "LogisticRegression",
+  "feature_columns": [
+    "gender",
+    "age_at_enrollment",
+    "gpa",
+    "tuition_debt",
+    "scholarship",
+    "failed_subjects",
+    "credits_enrolled",
+    "credits_passed",
+    "warning_level"
+  ],
+  "target_column": "target_binary",
+  "selection_rule": "Ưu tiên False Negative thấp, sau đó F1-score và ROC-AUC cao",
+  "cross_validation": "Stratified K-Fold (k=5)"
+}

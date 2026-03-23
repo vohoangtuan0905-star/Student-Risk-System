@@ -1,23 +1,21 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
 
 const verifyToken = (req, res, next) => {
-    // Lấy token từ header của người gửi
-    const authHeader = req.header('Authorization');
-    const token = authHeader && authHeader.split(' ')[1]; // Tách chữ "Bearer " ra khỏi token
+  const authHeader = req.headers.authorization;
 
-    if (!token) {
-        return res.status(401).json({ success: false, message: 'Truy cập bị từ chối! Không tìm thấy Token.' });
-    }
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Không có token hoặc token không hợp lệ' });
+  }
 
-    try {
-        // Giải mã token bằng Chìa khóa bí mật trong file .env
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; // Lưu thông tin user vào req để dùng cho các hàm sau
-        next(); // Token hợp lệ, cho phép đi tiếp!
-    } catch (error) {
-        return res.status(403).json({ success: false, message: 'Token không hợp lệ hoặc đã hết hạn!' });
-    }
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+  }
 };
 
-module.exports = { verifyToken };
+module.exports = verifyToken;
