@@ -1,0 +1,18 @@
+{
+  "version_label": "logistic_regression_20260323_142658",
+  "algorithm": "LogisticRegression",
+  "feature_columns": [
+    "gender",
+    "age_at_enrollment",
+    "gpa",
+    "tuition_debt",
+    "scholarship",
+    "failed_subjects",
+    "credits_enrolled",
+    "credits_passed",
+    "warning_level"
+  ],
+  "target_column": "target_binary",
+  "trained_at": "2026-03-23T14:26:58.227206",
+  "positive_class_definition": "1 = dropout, 0 = not_dropout"
+}

@@ -280,4 +280,168 @@ exports.predictByStudentId = async (req, res) => {
       error: error.message
     });
   }
+  
+};
+exports.retrainModel = async (req, res) => {
+  try {
+    const requestedByUserId = req.user?.id || null;
+
+    // 1. Tìm model production hiện tại
+    const [currentModels] = await db.query(`
+      SELECT id, version_label
+      FROM ml_model_versions
+      WHERE is_production = 1
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+
+    const oldModelVersionId = currentModels.length > 0 ? currentModels[0].id : null;
+
+    // 2. Tạo retrain job trạng thái running
+    const [jobResult] = await db.query(`
+      INSERT INTO retrain_jobs (
+        requested_by_user_id,
+        source_dataset,
+        algorithm,
+        status,
+        old_model_version_id,
+        started_at,
+        log_text
+      ) VALUES (?, ?, ?, ?, ?, NOW(), ?)
+    `, [
+      requestedByUserId,
+      'kaggle',
+      'LogisticRegression',
+      'running',
+      oldModelVersionId,
+      'Bắt đầu retrain mô hình'
+    ]);
+
+    const retrainJobId = jobResult.insertId;
+
+    // 3. Gọi Python retrain
+    const aiCorePath = path.join(__dirname, '..', '..', 'ai_core');
+    const pythonScriptPath = path.join(aiCorePath, 'retrain_best_model.py');
+
+    const pythonProcess = spawn('python', [pythonScriptPath], {
+      cwd: aiCorePath
+    });
+
+    let result = '';
+    let errorOutput = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      result += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+
+    pythonProcess.on('close', async (code) => {
+      try {
+        if (code !== 0) {
+          await db.query(`
+            UPDATE retrain_jobs
+            SET status = 'failed',
+                finished_at = NOW(),
+                log_text = ?
+            WHERE id = ?
+          `, [errorOutput || 'Retrain failed', retrainJobId]);
+
+          return res.status(500).json({
+            success: false,
+            message: 'Huấn luyện lại mô hình thất bại',
+            error: errorOutput
+          });
+        }
+
+        const retrainResult = JSON.parse(result);
+
+        // 4. Hạ model production cũ
+        await db.query(`
+          UPDATE ml_model_versions
+          SET is_production = 0
+          WHERE is_production = 1
+        `);
+
+        // 5. Thêm version model mới
+        const [newModelResult] = await db.query(`
+          INSERT INTO ml_model_versions (
+            model_name,
+            version_label,
+            algorithm,
+            dataset_source,
+            target_type,
+            metrics_json,
+            artifact_path,
+            is_production,
+            trained_at,
+            created_by_user_id,
+            note
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
+        `, [
+          'Student Dropout Predictor',
+          retrainResult.version_label,
+          'LogisticRegression',
+          'kaggle',
+          'binary',
+          JSON.stringify(retrainResult.metrics),
+          retrainResult.model_path,
+          1,
+          requestedByUserId,
+          'Retrain theo chu kỳ từ API /api/ai/retrain'
+        ]);
+
+        const newModelVersionId = newModelResult.insertId;
+
+        // 6. Cập nhật retrain job thành công
+        await db.query(`
+          UPDATE retrain_jobs
+          SET status = 'success',
+              new_model_version_id = ?,
+              finished_at = NOW(),
+              log_text = ?
+          WHERE id = ?
+        `, [
+          newModelVersionId,
+          `Retrain thành công. Version mới: ${retrainResult.version_label}`,
+          retrainJobId
+        ]);
+
+        return res.json({
+          success: true,
+          message: 'Huấn luyện lại mô hình thành công',
+          retrain_job_id: retrainJobId,
+          new_model_version_id: newModelVersionId,
+          retrain_result: retrainResult
+        });
+
+      } catch (innerError) {
+        console.error('retrainModel inner error:', innerError);
+
+        await db.query(`
+          UPDATE retrain_jobs
+          SET status = 'failed',
+              finished_at = NOW(),
+              log_text = ?
+          WHERE id = ?
+        `, [innerError.message, retrainJobId]);
+
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi xử lý kết quả retrain',
+          error: innerError.message
+        });
+      }
+    });
+
+  } catch (error) {
+    console.error('retrainModel error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi huấn luyện lại mô hình',
+      error: error.message
+    });
+  }
 };

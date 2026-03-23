@@ -1,0 +1,9 @@
+{
+  "model_name": "LogisticRegression",
+  "dataset": "kaggle_demo_sync_from_data_csv.csv",
+  "accuracy": 0.8587570621468926,
+  "precision": 0.7523809523809524,
+  "recall": 0.8345070422535211,
+  "f1_score": 0.7913188647746243,
+  "roc_auc": 0.9141630146938201
+}
