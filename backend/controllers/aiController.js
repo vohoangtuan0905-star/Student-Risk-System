@@ -3,6 +3,59 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const db = require('../config/db');
 
+function runPythonPrediction(payload) {
+  return new Promise((resolve, reject) => {
+    try {
+      const aiCorePath = path.join(__dirname, '..', '..', 'ai_core');
+      const reportsDir = path.join(aiCorePath, 'reports');
+      const tempInputPath = path.join(reportsDir, 'temp_predict_input.json');
+      const pythonScriptPath = path.join(aiCorePath, 'predict_best_model.py');
+
+      if (!fs.existsSync(reportsDir)) {
+        fs.mkdirSync(reportsDir, { recursive: true });
+      }
+
+      fs.writeFileSync(tempInputPath, JSON.stringify(payload, null, 2), 'utf-8');
+
+      const pythonProcess = spawn('python', [pythonScriptPath, tempInputPath], {
+        cwd: aiCorePath
+      });
+
+      let result = '';
+      let errorOutput = '';
+
+      pythonProcess.stdout.on('data', (data) => {
+        result += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          return reject(new Error(errorOutput || 'Lỗi khi gọi mô hình Python'));
+        }
+
+        try {
+          const predictionResult = JSON.parse(result);
+          resolve(predictionResult);
+        } catch (parseError) {
+          reject(parseError);
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function normalizeGender(gender) {
+  if (gender === 'Male') return 1;
+  if (gender === 'Female') return 0;
+  return 0;
+}
+
 exports.predictStudentRisk = async (req, res) => {
   try {
     const {
@@ -18,7 +71,6 @@ exports.predictStudentRisk = async (req, res) => {
       warning_level
     } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào
     if (
       gender === undefined ||
       age_at_enrollment === undefined ||
@@ -48,83 +100,184 @@ exports.predictStudentRisk = async (req, res) => {
       warning_level: Number(warning_level)
     };
 
-    const aiCorePath = path.join(__dirname, '..', '..', 'ai_core');
-    const tempInputPath = path.join(aiCorePath, 'reports', 'temp_predict_input.json');
-    const pythonScriptPath = path.join(aiCorePath, 'predict_best_model.py');
+    const predictionResult = await runPythonPrediction(payload);
 
-    fs.writeFileSync(tempInputPath, JSON.stringify(payload, null, 2), 'utf-8');
+    if (student_id) {
+      await db.query(`
+        UPDATE students
+        SET
+          gpa = ?,
+          tuition_debt = ?,
+          scholarship = ?,
+          risk_percentage = ?,
+          risk_level = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [
+        payload.gpa,
+        payload.tuition_debt,
+        payload.scholarship,
+        predictionResult.dropout_probability * 100,
+        predictionResult.risk_level,
+        student_id
+      ]);
+    }
 
-    const pythonProcess = spawn('python', [pythonScriptPath, tempInputPath], {
-      cwd: aiCorePath
-    });
-
-    let result = '';
-    let errorOutput = '';
-
-    pythonProcess.stdout.on('data', (data) => {
-      result += data.toString();
-    });
-
-    pythonProcess.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-    });
-
-    pythonProcess.on('close', async (code) => {
-      try {
-        if (code !== 0) {
-          console.error('Python stderr:', errorOutput);
-          return res.status(500).json({
-            success: false,
-            message: 'Lỗi khi gọi mô hình Python',
-            error: errorOutput
-          });
-        }
-
-        const predictionResult = JSON.parse(result);
-
-        // Nếu có student_id thì cập nhật snapshot vào bảng students
-        if (student_id) {
-          await db.query(`
-            UPDATE students
-            SET
-              gpa = ?,
-              tuition_debt = ?,
-              scholarship = ?,
-              risk_percentage = ?,
-              risk_level = ?,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-          `, [
-            payload.gpa,
-            payload.tuition_debt,
-            payload.scholarship,
-            predictionResult.dropout_probability * 100,
-            predictionResult.risk_level,
-            student_id
-          ]);
-        }
-
-        return res.json({
-          success: true,
-          message: 'Dự đoán thành công',
-          input_features: payload,
-          ai_result: predictionResult
-        });
-      } catch (innerError) {
-        console.error('Parse/DB update error:', innerError);
-        return res.status(500).json({
-          success: false,
-          message: 'Lỗi xử lý kết quả AI',
-          error: innerError.message
-        });
-      }
+    return res.json({
+      success: true,
+      message: 'Dự đoán thành công',
+      input_features: payload,
+      ai_result: predictionResult
     });
 
   } catch (error) {
     console.error('predictStudentRisk error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Lỗi server khi dự đoán rủi ro sinh viên'
+      message: 'Lỗi server khi dự đoán rủi ro sinh viên',
+      error: error.message
+    });
+  }
+};
+
+exports.predictByStudentId = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { semester_id } = req.body || {};
+
+    // 1. Kiểm tra sinh viên
+    const [studentRows] = await db.query(`
+      SELECT id, student_code, full_name, gender, age_at_enrollment
+      FROM students
+      WHERE id = ?
+    `, [studentId]);
+
+    if (studentRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sinh viên'
+      });
+    }
+
+    const student = studentRows[0];
+
+    // 2. Lấy academic record
+    let academicRecordQuery = `
+      SELECT
+        sar.id,
+        sar.student_id,
+        sar.semester_id,
+        sar.gpa,
+        sar.tuition_debt,
+        sar.scholarship,
+        sar.failed_subjects,
+        sar.credits_enrolled,
+        sar.credits_passed,
+        sar.warning_level,
+        sem.academic_year,
+        sem.semester_no,
+        sem.semester_name
+      FROM student_academic_records sar
+      JOIN semesters sem ON sar.semester_id = sem.id
+      WHERE sar.student_id = ?
+    `;
+    const queryParams = [studentId];
+
+    if (semester_id) {
+      academicRecordQuery += ` AND sar.semester_id = ? `;
+      queryParams.push(semester_id);
+    } else {
+      academicRecordQuery += ` ORDER BY sem.academic_year DESC, sem.semester_no DESC LIMIT 1 `;
+    }
+
+    const [recordRows] = await db.query(academicRecordQuery, queryParams);
+
+    if (recordRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bản ghi học tập phù hợp cho sinh viên này'
+      });
+    }
+
+    const academicRecord = recordRows[0];
+
+    // 3. Dựng feature AI v1 tự động từ DB
+    const payload = {
+      gender: normalizeGender(student.gender),
+      age_at_enrollment: Number(student.age_at_enrollment || 18),
+      gpa: Number(academicRecord.gpa || 0),
+      tuition_debt: Number(academicRecord.tuition_debt || 0),
+      scholarship: Number(academicRecord.scholarship || 0),
+      failed_subjects: Number(academicRecord.failed_subjects || 0),
+      credits_enrolled: Number(academicRecord.credits_enrolled || 0),
+      credits_passed: Number(academicRecord.credits_passed || 0),
+      warning_level: Number(academicRecord.warning_level || 0)
+    };
+
+    // 4. Gọi AI
+    const predictionResult = await runPythonPrediction(payload);
+
+    // 5. Cập nhật snapshot ở bảng students
+    await db.query(`
+      UPDATE students
+      SET
+        gpa = ?,
+        tuition_debt = ?,
+        scholarship = ?,
+        risk_percentage = ?,
+        risk_level = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [
+      payload.gpa,
+      payload.tuition_debt,
+      payload.scholarship,
+      predictionResult.dropout_probability * 100,
+      predictionResult.risk_level,
+      studentId
+    ]);
+
+    // 6. Cập nhật luôn kết quả AI vào record học kỳ
+    await db.query(`
+      UPDATE student_academic_records
+      SET
+        risk_percentage = ?,
+        risk_level = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [
+      predictionResult.dropout_probability * 100,
+      predictionResult.risk_level,
+      academicRecord.id
+    ]);
+
+    return res.json({
+      success: true,
+      message: 'Dự đoán theo student_id thành công',
+      student: {
+        id: student.id,
+        student_code: student.student_code,
+        full_name: student.full_name,
+        gender: student.gender,
+        age_at_enrollment: student.age_at_enrollment
+      },
+      academic_record: {
+        id: academicRecord.id,
+        semester_id: academicRecord.semester_id,
+        academic_year: academicRecord.academic_year,
+        semester_no: academicRecord.semester_no,
+        semester_name: academicRecord.semester_name
+      },
+      input_features: payload,
+      ai_result: predictionResult
+    });
+
+  } catch (error) {
+    console.error('predictByStudentId error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi dự đoán theo student_id',
+      error: error.message
     });
   }
 };
