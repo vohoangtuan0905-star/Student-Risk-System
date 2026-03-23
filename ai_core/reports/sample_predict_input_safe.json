@@ -1,0 +1,11 @@
+{
+  "gender": 1,
+  "age_at_enrollment": 18,
+  "gpa": 15.0,
+  "tuition_debt": 0,
+  "scholarship": 1,
+  "failed_subjects": 0,
+  "credits_enrolled": 18,
+  "credits_passed": 18,
+  "warning_level": 0
+}
