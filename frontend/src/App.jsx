@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import NotFoundPage from './pages/NotFoundPage';
 import StudentsPage from './pages/StudentsPage';
+import StudentDetailPage from './pages/StudentDetailPage';
 
 function PlaceholderPage({ title }) {
   return (
@@ -31,6 +32,7 @@ function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="students" element={<StudentsPage />} />
+          <Route path="students/:id" element={<StudentDetailPage />} />
           <Route path="students" element={<PlaceholderPage title="Quản lý sinh viên" />} />
           <Route path="semesters" element={<PlaceholderPage title="Quản lý học kỳ" />} />
           <Route path="ai" element={<PlaceholderPage title="AI & Retrain" />} />
