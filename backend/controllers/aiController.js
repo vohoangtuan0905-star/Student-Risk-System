@@ -3,13 +3,55 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const db = require('../config/db');
 
-function runPythonPrediction(payload) {
+const FEATURE_KEY_ALIASES = {
+  gender: ['gender', 'gioi_tinh', 'gioitinh', 'phai', 'sex'],
+  age_at_enrollment: ['age_at_enrollment', 'age', 'tuoi_nhap_hoc', 'tuoinhaphoc', 'tuoi_vao_hoc', 'tuoivaohoc'],
+  gpa: ['gpa', 'diem_trung_binh', 'diemtrungbinh', 'diem_tb', 'diemtb'],
+  tuition_debt: ['tuition_debt', 'no_hoc_phi', 'nohocphi', 'hoc_phi_no', 'hocphino'],
+  scholarship: ['scholarship', 'hoc_bong', 'hocbong'],
+  failed_subjects: ['failed_subjects', 'so_mon_truot', 'somontruot', 'mon_truot', 'montruot'],
+  credits_enrolled: ['credits_enrolled', 'tin_chi_dang_ky', 'tinchidangky', 'so_tin_chi_dang_ky', 'sotinchidangky'],
+  credits_passed: ['credits_passed', 'tin_chi_dat', 'tinchidat', 'so_tin_chi_dat', 'sotinchidat'],
+  warning_level: ['warning_level', 'muc_canh_bao', 'muccanhbao', 'canh_bao', 'canhbao']
+};
+
+function normalizeFeatureToken(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+const FEATURE_ALIAS_INDEX = Object.entries(FEATURE_KEY_ALIASES).reduce((acc, [canonicalKey, aliases]) => {
+  aliases.forEach((alias) => {
+    acc[normalizeFeatureToken(alias)] = canonicalKey;
+  });
+  return acc;
+}, {});
+
+function normalizeApproxPayloadKeys(payload) {
+  const normalized = {};
+
+  Object.entries(payload || {}).forEach(([rawKey, value]) => {
+    const token = normalizeFeatureToken(rawKey);
+    const mappedKey = FEATURE_ALIAS_INDEX[token] || rawKey;
+
+    if (!(mappedKey in normalized)) {
+      normalized[mappedKey] = value;
+    }
+  });
+
+  return normalized;
+}
+
+function runPythonScript(scriptName, payload) {
   return new Promise((resolve, reject) => {
     try {
       const aiCorePath = path.join(__dirname, '..', '..', 'ai_core');
       const reportsDir = path.join(aiCorePath, 'reports');
       const tempInputPath = path.join(reportsDir, 'temp_predict_input.json');
-      const pythonScriptPath = path.join(aiCorePath, 'predict_best_model.py');
+      const pythonScriptPath = path.join(aiCorePath, scriptName);
 
       if (!fs.existsSync(reportsDir)) {
         fs.mkdirSync(reportsDir, { recursive: true });
@@ -48,6 +90,14 @@ function runPythonPrediction(payload) {
       reject(error);
     }
   });
+}
+
+function runPythonPrediction(payload) {
+  return runPythonScript('predict_best_model.py', payload);
+}
+
+function runPythonApproxPrediction(payload) {
+  return runPythonScript('predict_with_feature_ranking.py', payload);
 }
 
 function normalizeGender(gender) {
@@ -441,6 +491,116 @@ exports.retrainModel = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Lỗi server khi huấn luyện lại mô hình',
+      error: error.message
+    });
+  }
+};
+
+exports.getCurrentModel = async (req, res) => {
+  try {
+    // 1. Lấy model hiện tại từ database
+    const [currentModels] = await db.query(`
+      SELECT
+        id,
+        model_name,
+        version_label,
+        algorithm,
+        dataset_source,
+        target_type,
+        metrics_json,
+        artifact_path,
+        is_production,
+        trained_at,
+        created_by_user_id
+      FROM ml_model_versions
+      WHERE is_production = 1
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+
+    if (currentModels.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy mô hình production'
+      });
+    }
+
+    const model = currentModels[0];
+    const metricsJson = typeof model.metrics_json === 'string' 
+      ? JSON.parse(model.metrics_json) 
+      : model.metrics_json;
+
+    // 2. Đọc metadata từ file (để lấy tên feature)
+    let features = [];
+    try {
+      const path = require('path');
+      const fs = require('fs');
+      const aiCorePath = path.join(__dirname, '..', '..', 'ai_core');
+      const metadataPath = path.join(aiCorePath, 'artifacts', 'best_model_metadata.json');
+      
+      if (fs.existsSync(metadataPath)) {
+        const metadataContent = fs.readFileSync(metadataPath, 'utf-8');
+        const metadata = JSON.parse(metadataContent);
+        features = metadata.feature_columns || [];
+      }
+    } catch (err) {
+      console.warn('Không thể đọc metadata file:', err.message);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Lấy thông tin mô hình hiện tại thành công',
+      model: {
+        id: model.id,
+        name: model.model_name,
+        version: model.version_label,
+        algorithm: model.algorithm,
+        dataset_source: model.dataset_source,
+        target_type: model.target_type,
+        trained_at: model.trained_at,
+        is_production: model.is_production,
+        metrics: metricsJson,
+        features: features,
+        artifact_path: model.artifact_path
+      }
+    });
+
+  } catch (error) {
+    console.error('getCurrentModel error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy thông tin mô hình',
+      error: error.message
+    });
+  }
+};
+
+exports.predictStudentRiskApprox = async (req, res) => {
+  try {
+    const payload = req.body;
+
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payload phải là object JSON chứa các thuộc tính đầu vào'
+      });
+    }
+
+    const normalizedPayload = normalizeApproxPayloadKeys(payload);
+    const approxResult = await runPythonApproxPrediction(normalizedPayload);
+
+    return res.json({
+      success: true,
+      message: 'Dự đoán xấp xỉ thành công (không ảnh hưởng mô hình chính)',
+      mode: 'approx_feature_ranking',
+      input_features: normalizedPayload,
+      ai_result: approxResult
+    });
+  } catch (error) {
+    console.error('predictStudentRiskApprox error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi dự đoán xấp xỉ',
       error: error.message
     });
   }

@@ -1,0 +1,11 @@
+﻿{
+  "gender": 1,
+  "age_at_enrollment": 19,
+  "gpa": 12.5,
+  "tuition_debt": 1,
+  "failed_subjects": 4,
+  "credits_passed": 8,
+  "warning_level": 1,
+  "extra_behavior_score": 92,
+  "extra_parent_income": 15000000
+}

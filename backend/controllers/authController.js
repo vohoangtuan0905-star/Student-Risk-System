@@ -89,7 +89,15 @@ const login = async (req, res) => {
       });
     }
 
+    console.log('🔍 DEBUG LOGIN:');
+    console.log('   Email:', email);
+    console.log('   Password nhập:', password);
+    console.log('   User ID:', user.id);
+    console.log('   Hash trong DB:', user.password_hash);
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
+
+    console.log('   Kết quả so sánh password:', isMatch);
 
     if (!isMatch) {
       return res.status(401).json({
@@ -130,7 +138,57 @@ const login = async (req, res) => {
   }
 };
 
+// Get current authenticated user info
+const getCurrentUser = async (req, res) => {
+  try {
+    // User info is already in req.user from authMiddleware (JWT decoded)
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Không được xác thực'
+      });
+    }
+
+    // Fetch full user details from database
+    const [users] = await db.query(
+      `SELECT id, full_name, email, role, department_id, is_active, created_at
+       FROM users
+       WHERE id = ?`,
+      [req.user.id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    const user = users[0];
+
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        department_id: user.department_id,
+        is_active: user.is_active,
+        created_at: user.created_at
+      }
+    });
+  } catch (error) {
+    console.error('getCurrentUser error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi Server khi lấy thông tin người dùng'
+    });
+  }
+};
+
 module.exports = {
   register,
-  login
+  login,
+  getCurrentUser
 };

@@ -12,6 +12,66 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+const IconArrowLeft = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
+const IconRefresh = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 4 23 10 17 10" />
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+  </svg>
+);
+
+const IconChart = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19h16" />
+    <path d="M6 16V8" />
+    <path d="M12 16V4" />
+    <path d="M18 16v-6" />
+  </svg>
+);
+
+const IconShield = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+const IconAlert = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const IconXCircle = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="15" y1="9" x2="9" y2="15" />
+    <line x1="9" y1="9" x2="15" y2="15" />
+  </svg>
+);
+
+function StatCard({ label, value, color, icon: Icon, helper }) {
+  return (
+    <div className={`stat-card stat-card--${color}`}>
+      <div className={`stat-card__icon stat-card__icon--${color}`}>
+        <Icon />
+      </div>
+      <div className="stat-card__body">
+        <div className="stat-card__value">{value}</div>
+        <div className="stat-card__label">{label}</div>
+        {helper ? <div className="metric-note">{helper}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 export default function StudentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -28,15 +88,13 @@ export default function StudentDetailPage() {
       setLoading(true);
       setError('');
 
-      const [historyRes, recordsRes] = await Promise.all([
+      const [studentRes, historyRes, recordsRes] = await Promise.all([
+        axiosClient.get(`/students/${id}`),
         axiosClient.get(`/students/${id}/history`),
         axiosClient.get(`/academic-records/student/${id}`)
       ]);
 
-      console.log('HISTORY RESPONSE:', historyRes.data);
-      console.log('RECORDS RESPONSE:', recordsRes.data);
-
-      const studentData = historyRes.data?.student || null;
+      const studentData = studentRes.data || historyRes.data?.student || null;
       const historyData = Array.isArray(historyRes.data?.history)
         ? historyRes.data.history
         : [];
@@ -48,9 +106,6 @@ export default function StudentDetailPage() {
       setHistory(historyData);
       setRecords(recordsData);
     } catch (err) {
-      console.log('FETCH STUDENT DETAIL ERROR:', err);
-      console.log('FETCH STUDENT DETAIL RESPONSE:', err?.response?.data);
-
       setError(
         err?.response?.data?.message ||
         err?.response?.data?.error ||
@@ -65,7 +120,14 @@ export default function StudentDetailPage() {
     fetchStudentDetail();
   }, [id]);
 
+  const hasAcademicData = (records.length > 0 ? records : history).length > 0;
+
   const handlePredictAgain = async () => {
+    if (!hasAcademicData) {
+      alert('Sinh viên chưa có bản ghi học tập theo học kỳ. Hãy tạo academic record trước khi dự đoán AI.');
+      return;
+    }
+
     try {
       setPredicting(true);
 
@@ -113,10 +175,40 @@ export default function StudentDetailPage() {
     return 'badge badge-safe';
   };
 
+  const getRiskLabel = (riskLevel) => {
+    if (riskLevel === 'Danger') return 'Nguy hiểm';
+    if (riskLevel === 'Warning') return 'Cảnh báo';
+    if (riskLevel === 'Safe') return 'An toàn';
+    return riskLevel || '-';
+  };
+
+  const getGenderLabel = (gender) => {
+    if (gender === 'Male') return 'Nam';
+    if (gender === 'Female') return 'Nữ';
+    return 'Khác';
+  };
+
+  const getStatusLabel = (status) => {
+    if (status === 'Enrolled') return 'Đang học';
+    if (status === 'Dropout') return 'Đã bỏ học';
+    if (status === 'Graduated') return 'Đã tốt nghiệp';
+    return status || '-';
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return new Intl.DateTimeFormat('vi-VN').format(d);
+  };
+
   if (loading) {
     return (
       <div className="page-wrapper">
-        <div className="loading">Đang tải chi tiết sinh viên...</div>
+        <div className="loading loading--flex">
+          <div className="loading__spinner" />
+          Đang tải chi tiết sinh viên...
+        </div>
       </div>
     );
   }
@@ -125,10 +217,21 @@ export default function StudentDetailPage() {
     return (
       <div className="page-wrapper">
         <div className="card">
-          <p style={{ color: 'red' }}>{error}</p>
-          <div style={{ marginTop: '16px' }}>
+          <div className="empty-state empty-state--compact">
+            <div className="empty-state__icon">
+              <IconAlert />
+            </div>
+            <div className="empty-state__title">Không thể tải chi tiết sinh viên</div>
+            <div className="empty-state__desc">{error}</div>
+          </div>
+          <div className="action-bar action-bar--center empty-state--action">
             <button className="btn btn-secondary" onClick={() => navigate('/students')}>
+              <IconArrowLeft />
               Quay lại danh sách
+            </button>
+            <button className="btn btn-primary" onClick={fetchStudentDetail}>
+              <IconRefresh />
+              Thử lại
             </button>
           </div>
         </div>
@@ -139,7 +242,7 @@ export default function StudentDetailPage() {
   if (!student) {
     return (
       <div className="page-wrapper">
-        <div className="empty-state">Không tìm thấy thông tin sinh viên</div>
+        <div className="empty-state empty-state--compact">Không tìm thấy thông tin sinh viên</div>
       </div>
     );
   }
@@ -147,84 +250,103 @@ export default function StudentDetailPage() {
   return (
     <div className="page-wrapper">
       <div className="page-header">
-        <div>
+        <div className="page-header__content">
           <h1 className="page-title">Chi tiết sinh viên</h1>
-          <p className="page-subtitle">
-            Theo dõi hồ sơ, lịch sử học tập và kết quả AI theo học kỳ
-          </p>
+          <p className="page-subtitle">Theo dõi hồ sơ, lịch sử học tập và kết quả AI theo học kỳ</p>
+        </div>
+
+        <div className="page-header__actions">
+          <button className="btn btn-secondary" onClick={() => navigate('/students')}>
+            <IconArrowLeft />
+            Quay lại
+          </button>
+          <button className="btn btn-primary" onClick={handlePredictAgain} disabled={predicting}>
+            <IconRefresh />
+            {predicting ? 'Đang dự đoán...' : 'Dự đoán lại AI'}
+          </button>
         </div>
       </div>
 
-      <div className="card detail-grid">
-        <div>
-          <h3 className="section-title">Thông tin cơ bản</h3>
+      {!hasAcademicData ? (
+        <div className="card" style={{ borderColor: 'var(--yellow-300)', background: 'var(--yellow-50)' }}>
+          <div className="empty-state empty-state--compact" style={{ margin: 0, padding: '14px 16px' }}>
+            <div className="empty-state__icon" style={{ color: 'var(--yellow-700)' }}>
+              <IconAlert />
+            </div>
+            <div className="empty-state__title">Thiếu dữ liệu học kỳ để dự đoán AI</div>
+            <div className="empty-state__desc">
+              Sinh viên này chưa có bản ghi trong bảng student_academic_records, nên hệ thống chưa thể chạy dự đoán lại.
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="card">
+        <div className="section-toolbar">
+          <div>
+            <div className="card__title">Thông tin cơ bản</div>
+            <div className="card__subtitle">Thông tin cần thiết để giáo viên theo dõi và liên hệ sinh viên</div>
+          </div>
+        </div>
+
+        <div className="detail-shell">
           <div className="detail-info-grid">
             <div><strong>Mã SV:</strong> {student.student_code || '-'}</div>
             <div><strong>Họ tên:</strong> {student.full_name || '-'}</div>
-            <div><strong>Giới tính:</strong> {student.gender || '-'}</div>
+            <div><strong>Trạng thái:</strong> {getStatusLabel(student.actual_status)}</div>
+
             <div><strong>Khoa:</strong> {student.department_name || '-'}</div>
             <div><strong>Lớp:</strong> {student.class_name || '-'}</div>
+            <div><strong>Năm nhập học:</strong> {student.enrollment_year ?? '-'}</div>
+
             <div><strong>Email:</strong> {student.email || '-'}</div>
-            <div><strong>Năm nhập học:</strong> {student.enrollment_year || '-'}</div>
-            <div><strong>Tuổi nhập học:</strong> {student.age_at_enrollment || '-'}</div>
-            <div><strong>Trạng thái:</strong> {student.actual_status || '-'}</div>
+            <div><strong>Số điện thoại:</strong> {student.phone || '-'}</div>
+            <div><strong>Địa chỉ:</strong> {student.address || '-'}</div>
+
+            <div><strong>Ngày sinh:</strong> {formatDate(student.date_of_birth)}</div>
+            <div><strong>Giới tính:</strong> {getGenderLabel(student.gender)}</div>
+            <div><strong>Nợ học phí:</strong> {Number(student.tuition_debt) === 1 ? 'Có' : 'Không'}</div>
           </div>
         </div>
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-card__label">GPA hiện tại</div>
-          <div className="stat-card__value">{latestRecord?.gpa ?? student.gpa ?? '-'}</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card__label">Rủi ro (%)</div>
-          <div className="stat-card__value">
-            {student.risk_percentage != null
-              ? Number(student.risk_percentage).toFixed(2)
-              : '-'}
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card__label">Mức rủi ro</div>
-          <div className="stat-card__value">
-            <span className={getRiskClass(student.risk_level || 'Safe')}>
-              {student.risk_level || 'Safe'}
-            </span>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card__label">Warning level</div>
-          <div className="stat-card__value">
-            {latestRecord?.warning_level ?? '-'}
-          </div>
-        </div>
+        <StatCard label="GPA hiện tại" value={latestRecord?.gpa ?? student.gpa ?? '-'} color="blue" icon={IconChart} helper="Dữ liệu gần nhất theo học kỳ" />
+        <StatCard label="Rủi ro (%)" value={student.risk_percentage != null ? Number(student.risk_percentage).toFixed(2) : '-'} color="yellow" icon={IconAlert} helper="Xác suất dự đoán từ mô hình" />
+        <StatCard label="Mức rủi ro" value={<span className={getRiskClass(student.risk_level || 'Safe')}>{getRiskLabel(student.risk_level || 'Safe')}</span>} color={student.risk_level === 'Danger' ? 'red' : student.risk_level === 'Warning' ? 'yellow' : 'green'} icon={IconShield} helper="Phân loại theo ngưỡng hiện tại" />
+        <StatCard label="Warning level" value={latestRecord?.warning_level ?? '-'} color="red" icon={IconXCircle} helper="Tín hiệu cảnh báo trong học kỳ gần nhất" />
       </div>
 
-      <div className="card action-bar">
-        <button
-          className="btn btn-primary"
-          onClick={handlePredictAgain}
-          disabled={predicting}
-        >
-          {predicting ? 'Đang dự đoán...' : 'Dự đoán lại AI'}
-        </button>
+      <div className="card">
+        <div className="section-toolbar">
+          <div>
+            <div className="card__title">Hành động</div>
+            <div className="card__subtitle">Cập nhật kết quả AI và quay lại danh sách khi cần</div>
+          </div>
+        </div>
 
-        <button
-          className="btn btn-secondary"
-          onClick={() => navigate('/students')}
-        >
-          Quay lại danh sách
-        </button>
+        <div className="action-bar">
+          <button className="btn btn-primary" onClick={handlePredictAgain} disabled={predicting || !hasAcademicData}>
+            <IconRefresh />
+            {predicting ? 'Đang dự đoán...' : 'Dự đoán lại AI'}
+          </button>
+
+          <button className="btn btn-secondary" onClick={() => navigate('/students')}>
+            <IconArrowLeft />
+            Quay lại danh sách
+          </button>
+        </div>
       </div>
 
       <div className="chart-grid">
         <div className="card">
-          <h3 className="section-title">Biểu đồ GPA theo học kỳ</h3>
-          <div style={{ width: '100%', height: 320 }}>
+          <div className="section-toolbar">
+            <div>
+              <h3 className="section-title section-title--tight">Biểu đồ GPA theo học kỳ</h3>
+              <div className="section-toolbar__meta">So sánh biến động điểm trung bình qua từng kỳ</div>
+            </div>
+          </div>
+          <div className="chart-card__body">
             <ResponsiveContainer>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -239,8 +361,13 @@ export default function StudentDetailPage() {
         </div>
 
         <div className="card">
-          <h3 className="section-title">Biểu đồ Risk % theo học kỳ</h3>
-          <div style={{ width: '100%', height: 320 }}>
+          <div className="section-toolbar">
+            <div>
+              <h3 className="section-title section-title--tight">Biểu đồ Risk % theo học kỳ</h3>
+              <div className="section-toolbar__meta">Theo dõi xác suất rủi ro từ mô hình AI</div>
+            </div>
+          </div>
+          <div className="chart-card__body">
             <ResponsiveContainer>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -262,7 +389,12 @@ export default function StudentDetailPage() {
       </div>
 
       <div className="card">
-        <h3 className="section-title">Lịch sử học tập theo học kỳ</h3>
+        <div className="section-toolbar">
+          <div>
+            <h3 className="section-title section-title--tight">Lịch sử học tập theo học kỳ</h3>
+            <div className="section-toolbar__meta">Bản ghi học tập, học phí, học bổng và nhãn rủi ro</div>
+          </div>
+        </div>
 
         <div className="table-wrapper">
           <table className="table">
@@ -309,10 +441,10 @@ export default function StudentDetailPage() {
                     </td>
                     <td>
                       <span className={getRiskClass(item.risk_level || 'Safe')}>
-                        {item.risk_level || 'Safe'}
+                        {getRiskLabel(item.risk_level || 'Safe')}
                       </span>
                     </td>
-                    <td>{item.actual_dropout_status || item.actual_status || '-'}</td>
+                    <td>{getStatusLabel(item.actual_dropout_status || item.actual_status || '-')}</td>
                   </tr>
                 ))
               )}

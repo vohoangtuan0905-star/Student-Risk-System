@@ -15,4 +15,25 @@ axiosClient.interceptors.request.use((config) => {
   return config;
 });
 
+axiosClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const requestUrl = error?.config?.url || '';
+    const isLoginRequest = requestUrl.includes('/auth/login');
+
+    if (status === 401 && !isLoginRequest) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      sessionStorage.setItem('authExpired', '1');
+
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login?reason=session_expired');
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export default axiosClient;
