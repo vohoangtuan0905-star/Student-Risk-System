@@ -18,7 +18,44 @@ const verifyToken = require('./middleware/authMiddleware');
 const { requireAdmin } = require('./middleware/roleMiddleware');
 
 const app = express();
-app.use(cors());
+const net = require('net');
+
+app.get('/debug-db', (req, res) => {
+  const socket = new net.Socket();
+  const start = Date.now();
+
+  socket.setTimeout(8000);
+
+  socket.on('connect', () => {
+    res.json({ status: 'OK', message: 'Kết nối TCP tới DB thành công', ms: Date.now() - start });
+    socket.destroy();
+  });
+
+  socket.on('timeout', () => {
+    res.json({ status: 'TIMEOUT', message: 'Không kết nối được trong 8s (bị chặn mạng)', ms: Date.now() - start });
+    socket.destroy();
+  });
+
+  socket.on('error', (err) => {
+    res.json({ status: 'ERROR', code: err.code, message: err.message, ms: Date.now() - start });
+  });
+
+  socket.connect(Number(process.env.DB_PORT), process.env.DB_HOST);
+});
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL, // URL Vercel của bạn sau khi deploy
+];
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json()); 
 
 app.get('/', (req, res) => {

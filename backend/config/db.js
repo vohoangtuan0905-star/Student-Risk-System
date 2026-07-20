@@ -1,18 +1,21 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config(); // Load biến môi trường từ file .env
+require('dotenv').config();
 
-// Tạo một Pool kết nối (Giúp hệ thống chạy nhanh hơn khi có nhiều người truy cập)
 const db = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    // Thêm SSL cho Aiven
+    ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false
+    } : undefined
 });
 
-// Chạy thử 1 câu lệnh để kiểm tra kết nối khi khởi động
 db.getConnection()
     .then(() => console.log('✅ Đã kết nối thành công với MySQL Database!'))
     .catch((err) => console.error('❌ Lỗi kết nối Database:', err.message));
