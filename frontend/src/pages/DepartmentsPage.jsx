@@ -244,14 +244,14 @@ export default function DepartmentsPage() {
   };
 
   const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([{ 'M\u00e3 Khoa': 'CNTT', 'T\u00ean Khoa': 'C\u00f4ng ngh\u1ec7 th\u00f4ng tin', 'M\u00f4 t\u1ea3': 'Khoa CNTT' }]);
+    const ws = XLSX.utils.json_to_sheet([{ 'Mã Khoa': 'CNTT', 'Tên Khoa': 'Công nghệ thông tin', 'Mô tả': 'Khoa CNTT' }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
     XLSX.writeFile(wb, 'mau_import_khoa.xlsx');
   };
 
   const handlePreviewImport = async () => {
-    if (!importFile) return setImportError('Vui l\u00f2ng ch\u1ecdn file Excel');
+    if (!importFile) return setImportError('Vui lòng chọn file Excel');
     setImportLoading(true); setImportError('');
     try {
       const fd = new FormData(); fd.append('file', importFile);
@@ -259,20 +259,20 @@ export default function DepartmentsPage() {
       const cols = res.data.headers || [];
       setImportColumns(cols); setImportPreview(res.data.dataPreview || []);
       const pick = (targets) => cols.find(c => targets.some(t => c.toLowerCase().includes(t))) || '';
-      setImportMapping({ department_code: pick(['m\u00e3']), department_name: pick(['t\u00ean']), description: pick(['m\u00f4 t\u1ea3']) });
+      setImportMapping({ department_code: pick(['mã']), department_name: pick(['tên']), description: pick(['mô tả']) });
       setImportStep(2);
-    } catch (err) { setImportError(err.response?.data?.message || 'L\u1ed7i khi \u0111\u1ecdc file'); }
+    } catch (err) { setImportError(err.response?.data?.message || 'Lỗi khi đọc file'); }
     finally { setImportLoading(false); }
   };
 
   const handleSubmitImport = async () => {
-    if (!importMapping.department_code || !importMapping.department_name) return setImportError('Vui l\u00f2ng map \u0111\u1ea7y \u0111\u1ee7 M\u00e3 khoa v\u00e0 T\u00ean khoa');
+    if (!importMapping.department_code || !importMapping.department_name) return setImportError('Vui lòng map đầy đủ Mã khoa và Tên khoa');
     setImportLoading(true); setImportError('');
     try {
       const fd = new FormData(); fd.append('file', importFile); fd.append('mapping', JSON.stringify(importMapping));
       const res = await axiosClient.post('/departments/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setImportResult(res.data); await fetchDepartments();
-    } catch (err) { setImportError(err.response?.data?.message || 'L\u1ed7i import'); }
+    } catch (err) { setImportError(err.response?.data?.message || 'Lỗi import'); }
     finally { setImportLoading(false); }
   };
 
@@ -377,17 +377,13 @@ export default function DepartmentsPage() {
               <IconUpload />
               Import Excel
             </button>
-            <button className="btn btn-secondary" onClick={handleDownloadTemplate}>
-              <IconDownload />
-              T\u1ea3i file m\u1eabu
-            </button>
             <button className="btn btn-secondary" onClick={fetchDepartments} disabled={loading}>
               <IconRefresh />
-              L\u00e0m m\u1edbi
+              Làm mới
             </button>
             <button className="btn btn-primary" onClick={handleAddDept}>
               <IconPlus />
-              Th\u00eam khoa
+              Thêm khoa
             </button>
           </>
         }
@@ -520,19 +516,19 @@ export default function DepartmentsPage() {
         <div className="modal-overlay" onClick={() => setImportOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title">Import Khoa t\u1eeb Excel</h2>
+              <h2 className="modal-title">Import Khoa từ Excel</h2>
               <button className="modal-close" onClick={() => setImportOpen(false)}>X</button>
             </div>
             <div className="modal-body">
               {importStep === 1 ? (
                 <>
                   <div className="form-group">
-                    <label className="label">Ch\u1ecdn file Excel *</label>
+                    <label className="label">Chọn file Excel *</label>
                     <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
-                    <div className="form-hint" style={{ marginTop: 8 }}>Ch\u1ec9 ch\u1ea5p nh\u1eadn file .xlsx, .xls</div>
+                    <div className="form-hint" style={{ marginTop: 8 }}>Chỉ chấp nhận file .xlsx, .xls</div>
                     <div style={{ marginTop: 12 }}>
                       <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">
-                        T\u1ea3i file m\u1eabu
+                        Tải file mẫu
                       </button>
                     </div>
                   </div>
@@ -541,7 +537,7 @@ export default function DepartmentsPage() {
                 <>
                   {importPreview.length > 0 && (
                     <div className="card" style={{ padding: 12, marginBottom: 16 }}>
-                      <div className="card__subtitle">Xem tr\u01b0\u1edbc d\u1eef li\u1ec7u ({importPreview.length} d\u00f2ng)</div>
+                      <div className="card__subtitle">Xem trước dữ liệu ({importPreview.length} dòng)</div>
                       <div style={{ overflowX: 'auto' }}>
                         <table className="table"><thead><tr>{importColumns.map(c => <th key={c}>{c}</th>)}</tr></thead>
                           <tbody>{importPreview.map((row, i) => <tr key={i}>{importColumns.map((c, j) => <td key={j}>{row[j]}</td>)}</tr>)}</tbody>
@@ -550,25 +546,25 @@ export default function DepartmentsPage() {
                     </div>
                   )}
                   <div className="card" style={{ padding: 12 }}>
-                    <div className="card__subtitle">Gh\u00e9p c\u1ed9t d\u1eef li\u1ec7u</div>
+                    <div className="card__subtitle">Ghép cột dữ liệu</div>
                     <div className="form-group">
-                      <label className="label">M\u00e3 khoa *</label>
+                      <label className="label">Mã khoa *</label>
                       <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
-                        <option value="">-- Ch\u1ecdn c\u1ed9t --</option>
+                        <option value="">-- Chọn cột --</option>
                         {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className="form-group">
-                      <label className="label">T\u00ean khoa *</label>
+                      <label className="label">Tên khoa *</label>
                       <select className="input" value={importMapping.department_name} onChange={(e) => setImportMapping(p => ({ ...p, department_name: e.target.value }))}>
-                        <option value="">-- Ch\u1ecdn c\u1ed9t --</option>
+                        <option value="">-- Chọn cột --</option>
                         {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className="form-group">
-                      <label className="label">M\u00f4 t\u1ea3</label>
+                      <label className="label">Mô tả</label>
                       <select className="input" value={importMapping.description} onChange={(e) => setImportMapping(p => ({ ...p, description: e.target.value }))}>
-                        <option value="">-- Kh\u00f4ng d\u00f9ng --</option>
+                        <option value="">-- Không dùng --</option>
                         {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
@@ -578,14 +574,14 @@ export default function DepartmentsPage() {
               {importError && <div className="form-error" style={{ marginTop: 12 }}>{importError}</div>}
               {importResult && (
                 <div className="card" style={{ marginTop: 12, padding: 12 }}>
-                  <div className="card__subtitle">K\u1ebft qu\u1ea3 import</div>
-                  <div>Th\u00eam m\u1edbi: {importResult.createdCount || 0}</div>
-                  <div>C\u1eadp nh\u1eadt: {importResult.updatedCount || 0}</div>
-                  <div>L\u1ed7i: {importResult.failedCount || 0}</div>
+                  <div className="card__subtitle">Kết quả import</div>
+                  <div>Thêm mới: {importResult.createdCount || 0}</div>
+                  <div>Cập nhật: {importResult.updatedCount || 0}</div>
+                  <div>Lỗi: {importResult.failedCount || 0}</div>
                   {importResult.errors?.length > 0 && (
                     <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13 }}>
                       <ul style={{ margin: 0, paddingLeft: 18 }}>
-                        {importResult.errors.slice(0, 10).map((err, i) => <li key={i} style={{ color: '#991b1b' }}>D\u00f2ng {err.row}: {err.message}</li>)}
+                        {importResult.errors.slice(0, 10).map((err, i) => <li key={i} style={{ color: '#991b1b' }}>Dòng {err.row}: {err.message}</li>)}
                       </ul>
                     </div>
                   )}
@@ -593,12 +589,12 @@ export default function DepartmentsPage() {
               )}
             </div>
             <div className="modal-footer">
-              {importStep > 1 && <button className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>\u2190 Quay l\u1ea1i</button>}
-              <button className="btn btn-secondary" onClick={() => setImportOpen(false)} disabled={importLoading}>H\u1ee7y</button>
+              {importStep > 1 && <button className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>← Quay lại</button>}
+              <button className="btn btn-secondary" onClick={() => setImportOpen(false)} disabled={importLoading}>Hủy</button>
               {importStep === 1 ? (
-                <button className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>{importLoading ? '\u0110ang x\u1eed l\u00fd...' : 'Ti\u1ebfp t\u1ee5c'}</button>
+                <button className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>{importLoading ? 'Đang xử lý...' : 'Tiếp tục'}</button>
               ) : (
-                <button className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>{importLoading ? '\u0110ang import...' : 'Import'}</button>
+                <button className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>{importLoading ? 'Đang import...' : 'Import'}</button>
               )}
             </div>
           </div>

@@ -2,6 +2,7 @@ import Pagination from "../components/Pagination";
 import { useEffect, useMemo, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
+import * as XLSX from 'xlsx';
 
 const MAX_HOMEROOM_CLASSES = 2;
 
@@ -55,6 +56,22 @@ const IconX = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const IconUpload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+const IconDownload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 
@@ -320,6 +337,56 @@ export default function LecturersPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Import state
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState(1);
+  const [importFile, setImportFile] = useState(null);
+  const [importColumns, setImportColumns] = useState([]);
+  const [importPreview, setImportPreview] = useState([]);
+  const [importMapping, setImportMapping] = useState({ full_name: '', email: '', department_code: '' });
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+
+  const resetImport = () => {
+    setImportStep(1); setImportFile(null); setImportColumns([]); setImportPreview([]);
+    setImportMapping({ full_name: '', email: '', department_code: '' });
+    setImportError(''); setImportResult(null); setImportLoading(false);
+  };
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([{ 'Họ tên': 'Nguyễn Văn A', 'Email': 'nva@example.com', 'Khoa': 'CNTT' }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'mau_import_giang_vien.xlsx');
+  };
+
+  const handlePreviewImport = async () => {
+    if (!importFile) return setImportError('Vui lòng chọn file Excel');
+    setImportLoading(true); setImportError('');
+    try {
+      const fd = new FormData(); fd.append('file', importFile);
+      const res = await axiosClient.post('/lecturers/import/preview', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const cols = res.data.headers || [];
+      setImportColumns(cols); setImportPreview(res.data.dataPreview || []);
+      const pick = (targets) => cols.find(c => targets.some(t => c.toLowerCase().includes(t))) || '';
+      setImportMapping({ full_name: pick(['họ tên']), email: pick(['email']), department_code: pick(['khoa']) });
+      setImportStep(2);
+    } catch (err) { setImportError(err.response?.data?.message || 'Lỗi khi đọc file'); }
+    finally { setImportLoading(false); }
+  };
+
+  const handleSubmitImport = async () => {
+    if (!importMapping.full_name || !importMapping.email) return setImportError('Vui lòng map đầy đủ Họ tên và Email');
+    setImportLoading(true); setImportError('');
+    try {
+      const fd = new FormData(); fd.append('file', importFile); fd.append('mapping', JSON.stringify(importMapping));
+      const res = await axiosClient.post('/lecturers/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setImportResult(res.data); await fetchData();
+    } catch (err) { setImportError(err.response?.data?.message || 'Lỗi import'); }
+    finally { setImportLoading(false); }
+  };
+
   const stats = useMemo(() => {
     const active = lecturers.filter((item) => Number(item.is_active) === 1).length;
     const fullyAssigned = lecturers.filter((item) => Number(item.homeroom_class_count || 0) >= MAX_HOMEROOM_CLASSES).length;
@@ -487,6 +554,10 @@ export default function LecturersPage() {
         subtitle="CRUD giảng viên và phân công mỗi giảng viên phụ trách tối đa 2 lớp"
         actions={(
           <>
+            <button className="btn btn-secondary" onClick={() => { resetImport(); setImportOpen(true); }}>
+              <IconUpload />
+              Import Excel
+            </button>
             <button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
               <IconRefresh />
               Làm mới
@@ -618,6 +689,81 @@ export default function LecturersPage() {
         onSave={handleSaveAssignment}
         loading={actionLoading}
       />
+
+      {importOpen && (
+        <div className="modal-overlay" onClick={() => setImportOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Import Giảng viên từ Excel</h2>
+              <button className="modal-close" onClick={() => setImportOpen(false)}>X</button>
+            </div>
+            <div className="modal-body">
+              {importStep === 1 ? (
+                <>
+                  <div className="form-group">
+                    <label className="label">Chọn file Excel *</label>
+                    <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+                    <div className="form-hint" style={{ marginTop: 8 }}>Chỉ chấp nhận file .xlsx, .xls</div>
+                    <div style={{ marginTop: 12 }}>
+                      <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">Tải file mẫu</button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {importPreview.length > 0 && (
+                    <div className="card" style={{ padding: 12, marginBottom: 16 }}>
+                      <div className="card__subtitle">Xem trước dữ liệu ({importPreview.length} dòng)</div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="table"><thead><tr>{importColumns.map(c => <th key={c}>{c}</th>)}</tr></thead>
+                          <tbody>{importPreview.map((row, i) => <tr key={i}>{importColumns.map((c, j) => <td key={j}>{row[j]}</td>)}</tr>)}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <div className="card" style={{ padding: 12 }}>
+                    <div className="card__subtitle">Ghép cột dữ liệu</div>
+                    {[['full_name','Họ tên *'],['email','Email *'],['department_code','Khoa']].map(([key, label]) => (
+                      <div className="form-group" key={key}>
+                        <label className="label">{label}</label>
+                        <select className="input" value={importMapping[key]} onChange={(e) => setImportMapping(p => ({ ...p, [key]: e.target.value }))}>
+                          <option value="">{label.includes('*') ? '-- Chọn cột --' : '-- Không dùng --'}</option>
+                          {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {importError && <div className="form-error" style={{ marginTop: 12 }}>{importError}</div>}
+              {importResult && (
+                <div className="card" style={{ marginTop: 12, padding: 12 }}>
+                  <div className="card__subtitle">Kết quả import</div>
+                  <div>Thêm mới: {importResult.createdCount || 0}</div>
+                  <div>Cập nhật: {importResult.updatedCount || 0}</div>
+                  <div>Lỗi: {importResult.failedCount || 0}</div>
+                  {importResult.errors?.length > 0 && (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13 }}>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {importResult.errors.slice(0, 10).map((err, i) => <li key={i} style={{ color: '#991b1b' }}>Dòng {err.row}: {err.message}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              {importStep > 1 && <button className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>← Quay lại</button>}
+              <button className="btn btn-secondary" onClick={() => setImportOpen(false)} disabled={importLoading}>Hủy</button>
+              {importStep === 1 ? (
+                <button className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>{importLoading ? 'Đang xử lý...' : 'Tiếp tục'}</button>
+              ) : (
+                <button className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>{importLoading ? 'Đang import...' : 'Import'}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -221,9 +221,12 @@ const importClasses = async (req, res) => {
     const deptMap = new Map();
     deptRows.forEach(d => deptMap.set(d.department_code, d.id));
 
-    const [gvRows] = await db.query(`SELECT id, lecturer_code FROM users WHERE role='teacher' AND lecturer_code IS NOT NULL`);
+    const [gvRows] = await db.query(`SELECT id, lecturer_code, full_name FROM users WHERE role='teacher'`);
     const gvMap = new Map();
-    gvRows.forEach(g => gvMap.set(g.lecturer_code, g.id));
+    gvRows.forEach(g => {
+      if (g.lecturer_code) gvMap.set(g.lecturer_code.toLowerCase(), g.id);
+      if (g.full_name) gvMap.set(g.full_name.toLowerCase(), g.id);
+    });
 
     const [existingRows] = await db.query(`SELECT id, class_code FROM classes`);
     const existingMap = new Map();
@@ -251,9 +254,10 @@ const importClasses = async (req, res) => {
 
       let homeroomId = null;
       if (lecturerCode) {
-        homeroomId = gvMap.get(lecturerCode);
+        const searchKey = lecturerCode.toLowerCase();
+        homeroomId = gvMap.get(searchKey);
         if (!homeroomId) {
-          errors.push({ row: rowIndex + 1, message: `Không tìm thấy Giảng viên có mã: ${lecturerCode}` });
+          errors.push({ row: rowIndex + 1, message: `Không tìm thấy Giảng viên: ${lecturerCode}` });
           continue;
         }
       }
