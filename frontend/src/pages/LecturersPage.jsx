@@ -2,6 +2,7 @@ import Pagination from "../components/Pagination";
 import { useEffect, useMemo, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
+import * as XLSX from 'xlsx';
 
 const MAX_HOMEROOM_CLASSES = 2;
 
@@ -55,6 +56,13 @@ const IconX = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const IconSearch = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
@@ -156,7 +164,7 @@ function LecturerModal({ isOpen, lecturer, departments, onClose, onSave, loading
               className={`input ${errors.email ? 'input--error' : ''}`}
               value={formData.email}
               onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-              disabled={!!lecturer}
+
             />
             {errors.email && <div className="form-error">{errors.email}</div>}
           </div>
@@ -304,6 +312,197 @@ function AssignClassesModal({ isOpen, lecturer, classes, onClose, onSave, loadin
   );
 }
 
+const IconUpload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+function ImportModal({ isOpen, onClose }) {
+  const [importFile, setImportFile] = useState(null);
+  const [importStep, setImportStep] = useState(1);
+  const [importColumns, setImportColumns] = useState([]);
+  const [importDataPreview, setImportDataPreview] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [importMapping, setImportMapping] = useState({
+    full_name: '',
+    email: '',
+    department_code: ''
+  });
+
+  if (!isOpen) return null;
+
+  const closeImportModal = () => {
+    setImportFile(null);
+    setImportStep(1);
+    setImportColumns([]);
+    setImportDataPreview([]);
+    setImportError('');
+    setImportResult(null);
+    setImportMapping({ full_name: '', email: '', department_code: '' });
+    onClose();
+  };
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([{
+      'H? tÍn': 'Nguy?n Van A',
+      'Email': 'nva@email.com',
+      'M„ Khoa': 'CNTT'
+    }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'mau_import_giangvien.xlsx');
+  };
+
+  const handlePreviewImport = async () => {
+    if (!importFile) return setImportError('Vui lÚng ch?n file Excel');
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      const res = await axiosClient.post('/lecturers/import/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImportColumns(res.data.headers || []);
+      setImportDataPreview(res.data.dataPreview || []);
+      setImportStep(2);
+      
+      const headers = res.data.headers || [];
+      const nameCol = headers.find(h => h.toLowerCase().includes('tÍn'));
+      const emailCol = headers.find(h => h.toLowerCase().includes('email'));
+      const deptCol = headers.find(h => h.toLowerCase().includes('khoa'));
+      setImportMapping({
+        full_name: nameCol || headers[0] || '',
+        email: emailCol || headers[1] || '',
+        department_code: deptCol || headers[2] || ''
+      });
+    } catch (err) {
+      setImportError(err.response?.data?.message || 'L?i khi d?c file Excel');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleSubmitImport = async () => {
+    if (!importMapping.full_name || !importMapping.email) {
+      return setImportError('Vui lÚng map d?y d? H? tÍn v‡ Email');
+    }
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('mapping', JSON.stringify(importMapping));
+      const res = await axiosClient.post('/lecturers/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImportResult(res.data);
+      setImportStep(3);
+    } catch (err) {
+      setImportError(err.response?.data?.message || 'L?i khi import d? li?u');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={closeImportModal}>
+      <div className="modal modal--large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Import Gi?ng viÍn t? Excel</h2>
+          <button className="modal-close" onClick={closeImportModal} disabled={importLoading}><IconX /></button>
+        </div>
+        <div className="modal-body">
+          {importStep === 1 && (
+            <>
+              <div className="form-group">
+                <label className="label">Ch?n file Excel *</label>
+                <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">
+                    T?i file m?u
+                  </button>
+                </div>
+              </div>
+              {importError && <div className="form-error">{importError}</div>}
+            </>
+          )}
+          {importStep === 2 && (
+            <>
+              <div className="card__subtitle">GhÈp c?t d? li?u</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div className="form-group">
+                  <label className="label">C?t H? tÍn *</label>
+                  <select className="input" value={importMapping.full_name} onChange={(e) => setImportMapping(p => ({ ...p, full_name: e.target.value }))}>
+                    <option value="">-- Ch?n c?t --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">C?t Email *</label>
+                  <select className="input" value={importMapping.email} onChange={(e) => setImportMapping(p => ({ ...p, email: e.target.value }))}>
+                    <option value="">-- Ch?n c?t --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">C?t M„ khoa</label>
+                  <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
+                    <option value="">-- Ch?n c?t (T˘y ch?n) --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-hint" style={{ marginTop: 8 }}>
+                Luu ˝: M?t kh?u m?c d?nh cho c·c Gi?ng viÍn m?i s? l‡ <strong>123456</strong>. M„ Gi?ng viÍn (GVxxxx) s? du?c t? d?ng t?o.
+              </div>
+              {importError && <div className="form-error">{importError}</div>}
+            </>
+          )}
+          {importStep === 3 && importResult && (
+            <>
+              <div className="card__subtitle">K?t qu? import</div>
+              <div>ThÍm m?i: {importResult.createdCount || 0}</div>
+              <div>C?p nh?t: {importResult.updatedCount || 0}</div>
+              <div>L?i: {importResult.failedCount || 0}</div>
+              {importResult.errors?.length > 0 && (
+                <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto', background: '#fee2e2', padding: 8, borderRadius: 4 }}>
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {importResult.errors.slice(0,10).map((err, i) => (
+                      <li key={i} style={{ color: '#991b1b' }}>DÚng {err.row}: {err.message}</li>
+                    ))}
+                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...v‡ {importResult.errors.length - 10} l?i kh·c</li>}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="modal-footer">
+          {importStep > 1 && importStep < 3 && (
+            <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>Quay l?i</button>
+          )}
+          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>–Ûng</button>
+          {importStep === 1 ? (
+            <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
+              {importLoading ? '–ang t?i...' : 'Ti?p t?c'}
+            </button>
+          ) : importStep === 2 ? (
+            <button type="button" className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>
+              {importLoading ? '–ang import...' : 'Import'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LecturersPage() {
   const [lecturers, setLecturers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -314,11 +513,13 @@ export default function LecturersPage() {
   const [error, setError] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingLecturer, setEditingLecturer] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assigningLecturer, setAssigningLecturer] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('name-asc');
 
   const stats = useMemo(() => {
     const active = lecturers.filter((item) => Number(item.is_active) === 1).length;
@@ -456,22 +657,38 @@ export default function LecturersPage() {
       </div>
     );
   };
+  const sortedLecturers = useMemo(() => {
+    const arr = [...lecturers];
+    switch (sortBy) {
+      case 'name-asc':
+        return arr.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'));
+      case 'name-desc':
+        return arr.sort((a, b) => (b.full_name || '').localeCompare(a.full_name || '', 'vi'));
+      case 'email-asc':
+        return arr.sort((a, b) => (a.email || '').localeCompare(b.email || '', 'vi'));
+      case 'email-desc':
+        return arr.sort((a, b) => (b.email || '').localeCompare(a.email || '', 'vi'));
+      default:
+        return arr;
+    }
+  }, [lecturers, sortBy]);
+
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(lecturers.length / pageSize)),
-    [lecturers.length, pageSize]
+    () => Math.max(1, Math.ceil(sortedLecturers.length / pageSize)),
+    [sortedLecturers.length, pageSize]
   );
 
   const paginatedLecturers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return lecturers.slice(startIndex, startIndex + pageSize);
-  }, [lecturers, currentPage, pageSize]);
+    return sortedLecturers.slice(startIndex, startIndex + pageSize);
+  }, [sortedLecturers, currentPage, pageSize]);
 
-  const pageStart = lecturers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const pageEnd = Math.min(currentPage * pageSize, lecturers.length);
+  const pageStart = sortedLecturers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, sortedLecturers.length);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize]);
+  }, [sortBy, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -514,8 +731,11 @@ export default function LecturersPage() {
           <div className="section-toolbar__meta">{loading ? '...' : `${lecturers.length} gi·∫£ng vi√™n`}</div>
         </div>
 
-        <div className="section-toolbar" style={{ paddingTop: 0 }}>
-          <div style={{ flex: 1 }}>
+        <div className="filter-bar filter-bar--flex">
+          <div className="filter-bar__search">
+            <span className="filter-bar__search-icon">
+              <IconSearch />
+            </span>
             <input
               className="input"
               placeholder="T√¨m theo m√£, h·ªç t√™n, email, khoa..."
@@ -523,6 +743,21 @@ export default function LecturersPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
+          <select
+            className="select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="name-asc">H·ªç t√™n A ‚Üí Z</option>
+            <option value="name-desc">H·ªç t√™n Z ‚Üí A</option>
+            <option value="email-asc">Email A ‚Üí Z</option>
+            <option value="email-desc">Email Z ‚Üí A</option>
+          </select>
+
+          <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setSortBy('name-asc'); }}>
+            X√≥a b·ªô l·ªçc
+          </button>
         </div>
 
         {loading ? (
@@ -586,12 +821,12 @@ export default function LecturersPage() {
               </tbody>
             </table>
 
-            {lecturers.length > 0 ? (
+            {sortedLecturers.length > 0 ? (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={lecturers.length}
+                totalItems={sortedLecturers.length}
                 pageStart={pageStart}
                 pageEnd={pageEnd}
                 itemName="gi·∫£ng vi√™n"
@@ -621,3 +856,4 @@ export default function LecturersPage() {
     </div>
   );
 }
+

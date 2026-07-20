@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
+import * as XLSX from 'xlsx';
 
 
 
@@ -12,6 +13,14 @@ const IconUsers = () => (
     <circle cx="9" cy="7" r="4" />
     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const IconChart = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
   </svg>
 );
 
@@ -52,12 +61,43 @@ const IconUpload = () => (
   </svg>
 );
 
+const IconPlus = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const IconEdit = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
 const IconSearch = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8" />
     <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
+
+const IconDownload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
 
 function StatCard({ label, value, color, icon: Icon, loading, helper }) {
   return (
@@ -74,10 +114,302 @@ function StatCard({ label, value, color, icon: Icon, loading, helper }) {
   );
 }
 
+function StudentModal({
+  isOpen,
+  student,
+  departments,
+  classes,
+  onClose,
+  onSave,
+  loading
+}) {
+  const [formData, setFormData] = useState({
+    student_code: '',
+    full_name: '',
+    department_id: '',
+    class_id: '',
+    date_of_birth: '',
+    gender: 'Other',
+    email: '',
+    phone: '',
+    address: '',
+    actual_status: 'Enrolled',
+    enrollment_year: '',
+    note: ''
+  });
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (student) {
+      setFormData({
+        student_code: student.student_code || '',
+        full_name: student.full_name || '',
+        department_id: student.department_id ? String(student.department_id) : '',
+        class_id: student.class_id ? String(student.class_id) : '',
+        date_of_birth: student.date_of_birth ? String(student.date_of_birth).slice(0, 10) : '',
+        gender: student.gender || 'Other',
+        email: student.email || '',
+        phone: student.phone || '',
+        address: student.address || '',
+        actual_status: student.actual_status || 'Enrolled',
+        enrollment_year: student.enrollment_year ? String(student.enrollment_year) : '',
+        note: student.note || ''
+      });
+    } else {
+      setFormData({
+        student_code: '',
+        full_name: '',
+        department_id: '',
+        class_id: '',
+        date_of_birth: '',
+        gender: 'Other',
+        email: '',
+        phone: '',
+        address: '',
+        actual_status: 'Enrolled',
+        enrollment_year: '',
+        note: ''
+      });
+    }
+    setErrors({});
+  }, [student, isOpen]);
+
+  const filteredClasses = useMemo(() => {
+    if (!formData.department_id) return classes;
+    return classes.filter((cls) => String(cls.department_id) === String(formData.department_id));
+  }, [classes, formData.department_id]);
+
+  const handleDepartmentChange = (value) => {
+    setFormData((prev) => {
+      const next = { ...prev, department_id: value };
+      if (prev.class_id) {
+        const selectedClass = classes.find((cls) => String(cls.id) === String(prev.class_id));
+        if (selectedClass && String(selectedClass.department_id) !== String(value)) {
+          next.class_id = '';
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleClassChange = (value) => {
+    setFormData((prev) => {
+      const selectedClass = classes.find((cls) => String(cls.id) === String(value));
+      return {
+        ...prev,
+        class_id: value,
+        department_id: selectedClass?.department_id
+          ? String(selectedClass.department_id)
+          : prev.department_id
+      };
+    });
+  };
+
+  const validate = () => {
+    const nextErrors = {};
+    if (!formData.student_code.trim()) nextErrors.student_code = 'Mã sinh viên không được bỏ trống';
+    if (!formData.full_name.trim()) nextErrors.full_name = 'Họ tên không được bỏ trống';
+    if (!formData.department_id) nextErrors.department_id = 'Vui lòng chọn khoa';
+    if (!formData.class_id) nextErrors.class_id = 'Vui lòng chọn lớp';
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!validate()) return;
+
+    const payload = {
+      student_code: formData.student_code.trim(),
+      full_name: formData.full_name.trim(),
+      department_id: Number(formData.department_id),
+      class_id: Number(formData.class_id),
+      date_of_birth: formData.date_of_birth || null,
+      gender: formData.gender || 'Other',
+      email: formData.email.trim() || null,
+      phone: formData.phone.trim() || null,
+      address: formData.address.trim() || null,
+      gpa: 0,
+      absences: 0,
+      tuition_debt: 0,
+      scholarship: 0,
+      risk_percentage: 0,
+      risk_level: 'Safe',
+      actual_status: formData.actual_status || 'Enrolled',
+      enrollment_year: formData.enrollment_year.trim() || null,
+      note: formData.note.trim() || null
+    };
+
+    await onSave(payload);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">
+            {student ? `Chỉnh sửa sinh viên: ${student.full_name}` : 'Thêm sinh viên mới'}
+          </h2>
+          <button className="modal-close" onClick={onClose}>X</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label className="label">Mã sinh viên *</label>
+            <input
+              className={`input ${errors.student_code ? 'input--error' : ''}`}
+              value={formData.student_code}
+              onChange={(event) => setFormData((prev) => ({ ...prev, student_code: event.target.value }))}
+            />
+            {errors.student_code && <div className="form-error">{errors.student_code}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="label">Họ tên *</label>
+            <input
+              className={`input ${errors.full_name ? 'input--error' : ''}`}
+              value={formData.full_name}
+              onChange={(event) => setFormData((prev) => ({ ...prev, full_name: event.target.value }))}
+            />
+            {errors.full_name && <div className="form-error">{errors.full_name}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="label">Khoa *</label>
+            <select
+              className={`input ${errors.department_id ? 'input--error' : ''}`}
+              value={formData.department_id}
+              onChange={(event) => handleDepartmentChange(event.target.value)}
+            >
+              <option value="">-- Chọn khoa --</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+              ))}
+            </select>
+            {errors.department_id && <div className="form-error">{errors.department_id}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="label">Lớp *</label>
+            <select
+              className={`input ${errors.class_id ? 'input--error' : ''}`}
+              value={formData.class_id}
+              onChange={(event) => handleClassChange(event.target.value)}
+            >
+              <option value="">-- Chọn lớp --</option>
+              {filteredClasses.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.class_name} ({cls.class_code})
+                </option>
+              ))}
+            </select>
+            {errors.class_id && <div className="form-error">{errors.class_id}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="label">Ngày sinh</label>
+            <input
+              type="date"
+              className="input"
+              value={formData.date_of_birth}
+              onChange={(event) => setFormData((prev) => ({ ...prev, date_of_birth: event.target.value }))}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Giới tính</label>
+            <select
+              className="input"
+              value={formData.gender}
+              onChange={(event) => setFormData((prev) => ({ ...prev, gender: event.target.value }))}
+            >
+              <option value="Male">Nam</option>
+              <option value="Female">Nữ</option>
+              <option value="Other">Khác</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="label">Email</label>
+            <input
+              type="email"
+              className="input"
+              value={formData.email}
+              onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Số điện thoại</label>
+            <input
+              className="input"
+              value={formData.phone}
+              onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Địa chỉ</label>
+            <input
+              className="input"
+              value={formData.address}
+              onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Năm nhập học</label>
+            <input
+              className="input"
+              value={formData.enrollment_year}
+              onChange={(event) => setFormData((prev) => ({ ...prev, enrollment_year: event.target.value }))}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Trạng thái</label>
+            <select
+              className="input"
+              value={formData.actual_status}
+              onChange={(event) => setFormData((prev) => ({ ...prev, actual_status: event.target.value }))}
+            >
+              <option value="Enrolled">Đang học</option>
+              <option value="Dropout">Đã bỏ học</option>
+              <option value="Graduated">Đã tốt nghiệp</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="label">Ghi chú</label>
+            <textarea
+              className="input"
+              rows="3"
+              value={formData.note}
+              onChange={(event) => setFormData((prev) => ({ ...prev, note: event.target.value }))}
+            />
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              Hủy
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentsPage() {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const normalizedRole = String(currentUser.role || '').trim().toLowerCase();
   const isTeacher = normalizedRole === 'teacher';
+  const isAdmin = normalizedRole === 'admin';
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -85,14 +417,18 @@ export default function StudentsPage() {
   const [riskFilter, setRiskFilter] = useState('ALL');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
   const [classFilter, setClassFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('name-asc');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
   const [importOpen, setImportOpen] = useState(false);
+  const [importType, setImportType] = useState(''); // 'info' or 'results'
   const [importStep, setImportStep] = useState(1);
   const [importFile, setImportFile] = useState(null);
   const [importColumns, setImportColumns] = useState([]);
   const [importPreview, setImportPreview] = useState([]);
   const [importMapping, setImportMapping] = useState({
+    semester_no: '',
+    academic_year: '',
     student_code: '',
     full_name: '',
     class_code: '',
@@ -106,8 +442,6 @@ export default function StudentsPage() {
     absences: '',
     tuition_debt: '',
     scholarship: '',
-    risk_percentage: '',
-    risk_level: '',
     actual_status: '',
     enrollment_year: '',
     note: ''
@@ -115,6 +449,11 @@ export default function StudentsPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState('');
   const [importResult, setImportResult] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -140,16 +479,43 @@ export default function StudentsPage() {
     fetchStudents();
   }, []);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchReferences = async () => {
+      try {
+        const [deptRes, classRes] = await Promise.all([
+          axiosClient.get('/departments'),
+          axiosClient.get('/classes')
+        ]);
+
+        setDepartments(Array.isArray(deptRes.data) ? deptRes.data : deptRes.data?.data || []);
+        setClasses(Array.isArray(classRes.data) ? classRes.data : classRes.data?.data || []);
+      } catch (err) {
+        setDepartments([]);
+        setClasses([]);
+      }
+    };
+
+    fetchReferences();
+  }, [isAdmin]);
+
   const filteredStudents = useMemo(() => {
-    const keywordLower = keyword.toLowerCase();
+    const removeDiacritics = (str) =>
+      str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+
+    const keywordLower = removeDiacritics(keyword.toLowerCase());
 
     return students.filter((student) => {
       const code = student.student_code?.toLowerCase() || '';
-      const name = student.full_name?.toLowerCase() || '';
-      const className = student.class_name?.toLowerCase() || '';
-      const departmentName = student.department_name?.toLowerCase() || '';
+      const name = removeDiacritics(student.full_name?.toLowerCase() || '');
+      const className = removeDiacritics(student.class_name?.toLowerCase() || '');
+      const departmentName = removeDiacritics(student.department_name?.toLowerCase() || '');
 
-      const matchKeyword = code.includes(keywordLower) || name.includes(keywordLower) || className.includes(keywordLower) || departmentName.includes(keywordLower);
+      const matchKeyword = code.includes(keywordLower)
+        || name.includes(keywordLower)
+        || className.includes(keywordLower)
+        || departmentName.includes(keywordLower);
       const matchRisk = riskFilter === 'ALL' ? true : student.risk_level === riskFilter;
       const matchDepartment = isTeacher || departmentFilter === 'ALL'
         ? true
@@ -205,22 +571,38 @@ export default function StudentsPage() {
     }
   }, [classFilter, classOptions]);
 
+  const sortedStudents = useMemo(() => {
+    const arr = [...filteredStudents];
+    switch (sortBy) {
+      case 'name-asc':
+        return arr.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'));
+      case 'name-desc':
+        return arr.sort((a, b) => (b.full_name || '').localeCompare(a.full_name || '', 'vi'));
+      case 'code-asc':
+        return arr.sort((a, b) => (a.student_code || '').localeCompare(b.student_code || '', 'vi'));
+      case 'code-desc':
+        return arr.sort((a, b) => (b.student_code || '').localeCompare(a.student_code || '', 'vi'));
+      default:
+        return arr;
+    }
+  }, [filteredStudents, sortBy]);
+
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(filteredStudents.length / pageSize)),
-    [filteredStudents.length, pageSize]
+    () => Math.max(1, Math.ceil(sortedStudents.length / pageSize)),
+    [sortedStudents.length, pageSize]
   );
 
   const paginatedStudents = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return filteredStudents.slice(startIndex, startIndex + pageSize);
-  }, [filteredStudents, currentPage, pageSize]);
+    return sortedStudents.slice(startIndex, startIndex + pageSize);
+  }, [sortedStudents, currentPage, pageSize]);
 
-  const pageStart = filteredStudents.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const pageEnd = Math.min(currentPage * pageSize, filteredStudents.length);
+  const pageStart = sortedStudents.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, sortedStudents.length);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [keyword, riskFilter, departmentFilter, classFilter, pageSize]);
+  }, [keyword, riskFilter, departmentFilter, classFilter, sortBy, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -288,14 +670,18 @@ export default function StudentsPage() {
     setRiskFilter('ALL');
     setDepartmentFilter('ALL');
     setClassFilter('ALL');
+    setSortBy('name-asc');
   };
 
   const resetImport = () => {
+    setImportType('');
     setImportStep(1);
     setImportFile(null);
     setImportColumns([]);
     setImportPreview([]);
     setImportMapping({
+      semester_no: '',
+      academic_year: '',
       student_code: '',
       full_name: '',
       class_code: '',
@@ -309,8 +695,6 @@ export default function StudentsPage() {
       absences: '',
       tuition_debt: '',
       scholarship: '',
-      risk_percentage: '',
-      risk_level: '',
       actual_status: '',
       enrollment_year: '',
       note: ''
@@ -321,6 +705,7 @@ export default function StudentsPage() {
   };
 
   const openImportModal = () => {
+    if (!isAdmin) return;
     resetImport();
     setImportOpen(true);
   };
@@ -359,6 +744,8 @@ export default function StudentsPage() {
       setImportPreview(previewRows);
       setImportMapping((prev) => ({
         ...prev,
+        semester_no: prev.semester_no || autoPick(['semester_no', 'semester', 'hoc ky', 'học kỳ', 'hk']),
+        academic_year: prev.academic_year || autoPick(['academic_year', 'nam hoc', 'năm học', 'nam_hoc']),
         student_code: prev.student_code || autoPick(['student_code', 'ma_sv', 'mã sv', 'mã sinh viên']),
         full_name: prev.full_name || autoPick(['full_name', 'ho ten', 'họ tên', 'ten']),
         class_code: prev.class_code || autoPick(['class_code', 'ma lop', 'mã lớp', 'lop']),
@@ -382,6 +769,13 @@ export default function StudentsPage() {
       return;
     }
 
+    if (importType === 'results') {
+      if (!importMapping.semester_no || !importMapping.academic_year) {
+        setImportError('Vui lòng map cột Học kỳ và Năm học.');
+        return;
+      }
+    }
+
     if (!importMapping.student_code || !importMapping.full_name || (!importMapping.class_code && !importMapping.class_name)) {
       setImportError('Vui lòng map đủ student_code, full_name và class_code/class_name.');
       return;
@@ -396,7 +790,8 @@ export default function StudentsPage() {
       formData.append('file', importFile);
       formData.append('mapping', JSON.stringify(importMapping));
 
-      const res = await axiosClient.post('/students/import', formData, {
+      const endpoint = importType === 'info' ? '/students/import-info' : '/students/import';
+      const res = await axiosClient.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -413,6 +808,103 @@ export default function StudentsPage() {
     }
   };
 
+  const handleExportExcel = () => {
+    const getRiskLabelExport = (level) => {
+      if (level === 'Danger') return 'Nguy hiểm';
+      if (level === 'Warning') return 'Cảnh báo';
+      if (level === 'Safe') return 'An toàn';
+      return level || '-';
+    };
+    const getGenderLabelExport = (g) => {
+      if (g === 'Male') return 'Nam';
+      if (g === 'Female') return 'Nữ';
+      return 'Khác';
+    };
+    const getStatusLabelExport = (s) => {
+      if (s === 'Enrolled') return 'Đang học';
+      if (s === 'Dropout') return 'Đã bỏ học';
+      if (s === 'Graduated') return 'Đã tốt nghiệp';
+      return s || '-';
+    };
+
+    const exportData = sortedStudents.map((s) => ({
+      'Mã SV': s.student_code || '',
+      'Họ tên': s.full_name || '',
+      'Giới tính': getGenderLabelExport(s.gender),
+      'Khoa': s.department_name || '',
+      'Lớp': s.class_code || s.class_name || '',
+      'GPA': s.gpa ?? '',
+      'Vắng': s.absences ?? '',
+      'Học phí': Number(s.tuition_debt) === 1 ? 'Có nợ' : 'Đã đủ',
+      'Học bổng': Number(s.scholarship) === 1 ? 'Có' : 'Không',
+      'Rủi ro (%)': s.risk_percentage != null ? Number(s.risk_percentage).toFixed(2) : '',
+      'Mức rủi ro': getRiskLabelExport(s.risk_level),
+      'Trạng thái': getStatusLabelExport(s.actual_status),
+      'Email': s.email || '',
+      'Số điện thoại': s.phone || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const colWidths = [
+      { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 18 }, { wch: 14 },
+      { wch: 6 }, { wch: 6 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+      { wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 14 }
+    ];
+    ws['!cols'] = colWidths;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Danh sách sinh viên');
+
+    const filterLabel = riskFilter !== 'ALL' ? `_${riskFilter}` : '';
+    const fileName = `danh_sach_sinh_vien${filterLabel}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const handleAddStudent = () => {
+    setEditingStudent(null);
+    setModalOpen(true);
+  };
+
+  const handleEditStudent = (student) => {
+    setEditingStudent(student);
+    setModalOpen(true);
+  };
+
+  const handleSaveStudent = async (payload) => {
+    try {
+      setActionLoading(true);
+      if (editingStudent) {
+        await axiosClient.put(`/students/${editingStudent.id}`, payload);
+        alert('Cập nhật sinh viên thành công');
+      } else {
+        await axiosClient.post('/students', payload);
+        alert('Thêm sinh viên thành công');
+      }
+      setModalOpen(false);
+      setEditingStudent(null);
+      await fetchStudents();
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Lỗi khi lưu sinh viên');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (student) => {
+    const confirmed = window.confirm(`Xóa sinh viên ${student.full_name}?`);
+    if (!confirmed) return;
+
+    try {
+      setActionLoading(true);
+      await axiosClient.delete(`/students/${student.id}`);
+      alert('Xóa sinh viên thành công');
+      await fetchStudents();
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Lỗi khi xóa sinh viên');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div className="page-wrapper">
       <PageHeader
@@ -423,10 +915,18 @@ export default function StudentsPage() {
             : 'Theo dõi hồ sơ học tập và mức độ rủi ro hiện tại'
         }
         actions={
-          <button className="btn btn-secondary" onClick={fetchStudents} disabled={loading}>
-            <IconRefresh />
-            Làm mới
-          </button>
+          <>
+            <button className="btn btn-secondary" onClick={fetchStudents} disabled={loading}>
+              <IconRefresh />
+              Làm mới
+            </button>
+            {isAdmin ? (
+              <button className="btn btn-primary" onClick={handleAddStudent}>
+                <IconPlus />
+                Thêm sinh viên
+              </button>
+            ) : null}
+          </>
         }
       />
 
@@ -448,8 +948,10 @@ export default function StudentsPage() {
       <div className="card">
         <div className="section-toolbar">
           <div>
-            <div className="card__title">Bộ lọc danh sách</div>
-            <div className="card__subtitle">Tìm theo mã sinh viên, họ tên hoặc mức rủi ro</div>
+            <div className="card__title">Lọc danh sách</div>
+            <div className="card__subtitle">
+              Hiển thị {sortedStudents.length}/{students.length} sinh viên
+            </div>
           </div>
           <div className="section-toolbar__meta">
             Đang hiển thị {filteredStudents.length}/{students.length} sinh viên
@@ -507,6 +1009,17 @@ export default function StudentsPage() {
             </>
           ) : null}
 
+          <select
+            className="select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="name-asc">Họ tên A → Z</option>
+            <option value="name-desc">Họ tên Z → A</option>
+            <option value="code-asc">Mã SV A → Z</option>
+            <option value="code-desc">Mã SV Z → A</option>
+          </select>
+
           <button className="btn btn-secondary" onClick={clearFilters}>
             Xóa bộ lọc
           </button>
@@ -516,9 +1029,15 @@ export default function StudentsPage() {
       <div className="table-wrapper">
         <div className="table-wrapper__header">
           <div style={{ display: 'flex', gap: 12 }}>
-            <button className="btn btn-secondary" onClick={openImportModal}>
-              <IconUpload />
-              Import Excel
+            {isAdmin ? (
+              <button className="btn btn-secondary" onClick={openImportModal}>
+                <IconUpload />
+                Import Excel
+              </button>
+            ) : null}
+            <button className="btn btn-success" onClick={handleExportExcel} disabled={sortedStudents.length === 0}>
+              <IconDownload />
+              Xuất Excel ({sortedStudents.length})
             </button>
             <button className="btn btn-primary" onClick={fetchStudents} disabled={loading}>
               <IconRefresh />
@@ -570,12 +1089,19 @@ export default function StudentsPage() {
                   </tr>
                 ) : (
                   paginatedStudents.map((student) => (
-                    <tr key={student.id}>
+                    <tr key={student.id} className={Number(student.consecutive_warning_count) >= 2 ? 'row-consecutive-warning' : ''}>
                       <td className="mono">{student.student_code || '-'}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--gray-900)' }}>{student.full_name || '-'}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
+                        {student.full_name || '-'}
+                        {Number(student.consecutive_warning_count) >= 2 ? (
+                          <span className="consecutive-badge" style={{ marginLeft: 8 }} title={`Cảnh báo liên tục ${student.consecutive_warning_count} kỳ`}>
+                            ⚠ {student.consecutive_warning_count} kỳ
+                          </span>
+                        ) : null}
+                      </td>
                       <td>{getGenderLabel(student.gender)}</td>
                       <td>{student.department_name || '-'}</td>
-                      <td>{student.class_name || '-'}</td>
+                      <td>{student.class_code || student.class_name || '-'}</td>
                       <td>{student.gpa ?? '-'}</td>
                       <td>{student.absences ?? '-'}</td>
                       <td>{Number(student.tuition_debt) === 1 ? 'Có nợ' : 'Đã đủ'}</td>
@@ -590,12 +1116,31 @@ export default function StudentsPage() {
                       </td>
                       <td>{getStatusLabel(student.actual_status)}</td>
                       <td>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => navigate(`/students/${student.id}`)}
-                        >
-                          Xem chi tiết
-                        </button>
+                        <div className="action-cell">
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => navigate(`/students/${student.id}`)}
+                          >
+                            Xem chi tiết
+                          </button>
+                          {isAdmin ? (
+                            <>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => handleEditStudent(student)}
+                              >
+                                <IconEdit />
+                              </button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={() => handleDeleteStudent(student)}
+                                disabled={actionLoading}
+                              >
+                                <IconTrash />
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -603,12 +1148,12 @@ export default function StudentsPage() {
               </tbody>
             </table>
 
-            {filteredStudents.length > 0 ? (
+            {sortedStudents.length > 0 ? (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={filteredStudents.length}
+                totalItems={sortedStudents.length}
                 pageStart={pageStart}
                 pageEnd={pageEnd}
                 itemName="sinh viên"
@@ -618,35 +1163,70 @@ export default function StudentsPage() {
         )}
       </div>
 
-      {importOpen ? (
+      {isAdmin && importOpen ? (
         <div className="modal-overlay" onClick={closeImportModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title">Import danh sách sinh viên từ Excel</h2>
-              <button className="modal-close" onClick={closeImportModal}>
-                X
-              </button>
+              <h2 className="modal-title">
+                {!importType ? 'Chọn loại Import' : importType === 'info' ? 'Import thông tin sinh viên' : 'Import kết quả học tập'}
+              </h2>
+              <button className="modal-close" onClick={closeImportModal}>X</button>
             </div>
 
             <div className="modal-body">
-              {importStep === 1 ? (
-                <div className="form-group">
-                  <label className="label">Chọn file Excel *</label>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                  />
-                  <div className="form-hint" style={{ marginTop: 8 }}>
-                    Chỉ chấp nhận file Excel (.xlsx, .xls)
+              {/* Step 0: Chọn loại import */}
+              {!importType ? (
+                <div className="import-type-grid">
+                  <div className="import-type-card" onClick={() => setImportType('info')}>
+                    <IconUsers />
+                    <div className="import-type-card__title">Thông tin Sinh viên</div>
+                    <div className="import-type-card__desc">
+                      Import danh sách sinh viên (Mã SV, Họ tên, Lớp, Giới tính, Email...).<br />
+                    </div>
                   </div>
-                  <div className="form-hint" style={{ marginTop: 8 }}>
-                    Bước 1: Chọn file và bấm Tiếp tục để xem tiêu đề cột.
-                  </div>
-                  <div className="form-hint">
-                    Bước 2: Ghép từng cột trong file với trường dữ liệu bên dưới, sau đó bấm Import.
+                  <div className="import-type-card" onClick={() => setImportType('results')}>
+                    <IconChart />
+                    <div className="import-type-card__title">Kết quả học tập</div>
+                    <div className="import-type-card__desc">
+                      Import GPA, Nợ Học phí, Học bổng, Vắng... theo từng Học kỳ.<br />
+                    </div>
                   </div>
                 </div>
+              ) : importStep === 1 ? (
+                <>
+                  <div className="form-group">
+                    <label className="label">Chọn file Excel *</label>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    />
+                    <div className="form-hint" style={{ marginTop: 8 }}>
+                      Chỉ chấp nhận file Excel (.xlsx, .xls)
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      {importType === 'info' ? (
+                        <a className="btn btn-secondary btn-sm" href="/mau_import_thongtin_sv.xlsx" download>
+                          Tải file mẫu — Thông tin SV
+                        </a>
+                      ) : (
+                        <a className="btn btn-secondary btn-sm" href="/mau_import_ketqua_hoctap.xlsx" download>
+                          Tải file mẫu — Kết quả học tập
+                        </a>
+                      )}
+                    </div>
+                    {importType === 'results' && (
+                      <div className="form-hint" style={{ marginTop: 8 }}>
+                        File Excel phải có cột <strong>Học kỳ</strong> và <strong>Năm học</strong>. Học kỳ phải đã kết thúc.
+                      </div>
+                    )}
+                    {importType === 'info' && (
+                      <div className="form-hint" style={{ marginTop: 8 }}>
+                        Import thông tin cá nhân sinh viên. <strong>Không cần</strong> cột Học kỳ/Năm học.
+                      </div>
+                    )}
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="card" style={{ padding: 12, marginBottom: 16 }}>
@@ -678,258 +1258,157 @@ export default function StudentsPage() {
                   </div>
 
                   <div className="card" style={{ padding: 12 }}>
-                    <div className="card__subtitle">Ghép cột dữ liệu</div>
+                    <div className="card__subtitle">Ghép cột dữ liệu {importType === 'info' ? '(Thông tin SV)' : '(Kết quả học tập)'}</div>
+
+                    {/* Chỉ hiện Học kỳ + Năm học cho import kết quả */}
+                    {importType === 'results' && (
+                      <>
+                        <div className="form-group">
+                          <label className="label">Học kỳ (semester_no) *</label>
+                          <select className="input" value={importMapping.semester_no} onChange={(e) => setImportMapping((prev) => ({ ...prev, semester_no: e.target.value }))}>
+                            <option value="">-- Chọn cột --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                          <div className="form-hint" style={{ marginTop: 4 }}>Giá trị: 1, 2 hoặc 3.</div>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Năm học (academic_year) *</label>
+                          <select className="input" value={importMapping.academic_year} onChange={(e) => setImportMapping((prev) => ({ ...prev, academic_year: e.target.value }))}>
+                            <option value="">-- Chọn cột --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                          <div className="form-hint" style={{ marginTop: 4 }}>VD: 2024-2025</div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Cột chung: Mã SV, Họ tên, Mã lớp */}
                     <div className="form-group">
                       <label className="label">Mã sinh viên (student_code) *</label>
-                      <select
-                        className="input"
-                        value={importMapping.student_code}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, student_code: e.target.value }))}
-                      >
+                      <select className="input" value={importMapping.student_code} onChange={(e) => setImportMapping((prev) => ({ ...prev, student_code: e.target.value }))}>
                         <option value="">-- Chọn cột --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
+                        {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
                       </select>
                     </div>
 
                     <div className="form-group">
                       <label className="label">Họ tên (full_name) *</label>
-                      <select
-                        className="input"
-                        value={importMapping.full_name}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, full_name: e.target.value }))}
-                      >
+                      <select className="input" value={importMapping.full_name} onChange={(e) => setImportMapping((prev) => ({ ...prev, full_name: e.target.value }))}>
                         <option value="">-- Chọn cột --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
+                        {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
                       </select>
                     </div>
 
                     <div className="form-group">
                       <label className="label">Mã lớp (class_code) *</label>
-                      <select
-                        className="input"
-                        value={importMapping.class_code}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, class_code: e.target.value }))}
-                      >
+                      <select className="input" value={importMapping.class_code} onChange={(e) => setImportMapping((prev) => ({ ...prev, class_code: e.target.value }))}>
                         <option value="">-- Chọn cột --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
+                        {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
                       </select>
                     </div>
 
-                    <div className="form-group">
-                      <label className="label">Tên lớp (class_name)</label>
-                      <select
-                        className="input"
-                        value={importMapping.class_name}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, class_name: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Thông tin cá nhân — CHỈ hiện cho import info */}
+                    {importType === 'info' && (
+                      <>
+                        <div className="form-group">
+                          <label className="label">Tên lớp (class_name)</label>
+                          <select className="input" value={importMapping.class_name} onChange={(e) => setImportMapping((prev) => ({ ...prev, class_name: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Giới tính</label>
+                          <select className="input" value={importMapping.gender} onChange={(e) => setImportMapping((prev) => ({ ...prev, gender: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Ngày sinh</label>
+                          <select className="input" value={importMapping.date_of_birth} onChange={(e) => setImportMapping((prev) => ({ ...prev, date_of_birth: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Email</label>
+                          <select className="input" value={importMapping.email} onChange={(e) => setImportMapping((prev) => ({ ...prev, email: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Điện thoại</label>
+                          <select className="input" value={importMapping.phone} onChange={(e) => setImportMapping((prev) => ({ ...prev, phone: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Địa chỉ</label>
+                          <select className="input" value={importMapping.address} onChange={(e) => setImportMapping((prev) => ({ ...prev, address: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Năm nhập học</label>
+                          <select className="input" value={importMapping.enrollment_year} onChange={(e) => setImportMapping((prev) => ({ ...prev, enrollment_year: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Ghi chú</label>
+                          <select className="input" value={importMapping.note} onChange={(e) => setImportMapping((prev) => ({ ...prev, note: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                      </>
+                    )}
 
-                    <div className="form-group">
-                      <label className="label">Giới tính (gender)</label>
-                      <select
-                        className="input"
-                        value={importMapping.gender}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, gender: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Ngày sinh (date_of_birth)</label>
-                      <select
-                        className="input"
-                        value={importMapping.date_of_birth}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, date_of_birth: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Email</label>
-                      <select
-                        className="input"
-                        value={importMapping.email}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, email: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Điện thoại</label>
-                      <select
-                        className="input"
-                        value={importMapping.phone}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, phone: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Địa chỉ</label>
-                      <select
-                        className="input"
-                        value={importMapping.address}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, address: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">GPA</label>
-                      <select
-                        className="input"
-                        value={importMapping.gpa}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, gpa: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Số buổi vắng</label>
-                      <select
-                        className="input"
-                        value={importMapping.absences}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, absences: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Học phí nợ (0/1)</label>
-                      <select
-                        className="input"
-                        value={importMapping.tuition_debt}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, tuition_debt: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Học bổng (0/1)</label>
-                      <select
-                        className="input"
-                        value={importMapping.scholarship}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, scholarship: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Tỷ lệ rủi ro (%)</label>
-                      <select
-                        className="input"
-                        value={importMapping.risk_percentage}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, risk_percentage: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Mức rủi ro (Safe/Warning/Danger)</label>
-                      <select
-                        className="input"
-                        value={importMapping.risk_level}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, risk_level: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Trạng thái (Enrolled/Dropout/Graduated)</label>
-                      <select
-                        className="input"
-                        value={importMapping.actual_status}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, actual_status: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Năm nhập học</label>
-                      <select
-                        className="input"
-                        value={importMapping.enrollment_year}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, enrollment_year: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="label">Ghi chú</label>
-                      <select
-                        className="input"
-                        value={importMapping.note}
-                        onChange={(e) => setImportMapping((prev) => ({ ...prev, note: e.target.value }))}
-                      >
-                        <option value="">-- Không dùng --</option>
-                        {importColumns.map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Kết quả học tập — CHỈ hiện cho import results */}
+                    {importType === 'results' && (
+                      <>
+                        <div className="form-group">
+                          <label className="label">GPA</label>
+                          <select className="input" value={importMapping.gpa} onChange={(e) => setImportMapping((prev) => ({ ...prev, gpa: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Số buổi vắng</label>
+                          <select className="input" value={importMapping.absences} onChange={(e) => setImportMapping((prev) => ({ ...prev, absences: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Nợ học phí (0/1)</label>
+                          <select className="input" value={importMapping.tuition_debt} onChange={(e) => setImportMapping((prev) => ({ ...prev, tuition_debt: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Học bổng (0/1)</label>
+                          <select className="input" value={importMapping.scholarship} onChange={(e) => setImportMapping((prev) => ({ ...prev, scholarship: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Trạng thái (Enrolled/Dropout/Graduated)</label>
+                          <select className="input" value={importMapping.actual_status} onChange={(e) => setImportMapping((prev) => ({ ...prev, actual_status: e.target.value }))}>
+                            <option value="">-- Không dùng --</option>
+                            {importColumns.map((col) => (<option key={col} value={col}>{col}</option>))}
+                          </select>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -943,18 +1422,74 @@ export default function StudentsPage() {
               {importResult ? (
                 <div className="card" style={{ marginTop: 12, padding: 12 }}>
                   <div className="card__subtitle">Kết quả import</div>
+                  {importResult.selectedSemester ? (
+                    <div>
+                      Học kỳ áp dụng: {importResult.selectedSemester.semester_name || `HK${importResult.selectedSemester.semester_no} ${importResult.selectedSemester.academic_year}`}
+                    </div>
+                  ) : null}
                   <div>Thêm mới: {importResult.createdCount || 0}</div>
                   <div>Cập nhật: {importResult.updatedCount || 0}</div>
                   <div>Lỗi: {importResult.failedCount || 0}</div>
+                  {importResult.aiMessage ? (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, color: '#15803d' }}>
+                      <div style={{ fontWeight: 600 }}>🤖 {importResult.aiMessage}</div>
+                      {importResult.showBatchButton ? (
+                        <button
+                          className="btn btn-primary"
+                          style={{ marginTop: 8 }}
+                          disabled={importLoading}
+                          onClick={async () => {
+                            try {
+                              setImportLoading(true);
+                              setImportError('');
+                              const aiRes = await axiosClient.post('/ai/predict-all');
+                              setImportResult(prev => ({
+                                ...prev,
+                                aiMessage: aiRes.data?.message || 'AI đã dự đoán xong!',
+                                showBatchButton: false
+                              }));
+                              await fetchStudents();
+                            } catch (aiErr) {
+                              setImportError('AI Batch Prediction lỗi: ' + (aiErr?.response?.data?.error || aiErr?.message));
+                            } finally {
+                              setImportLoading(false);
+                            }
+                          }}
+                        >
+                          {importLoading ? '⏳ Đang chạy AI...' : '🚀 Chạy AI dự đoán tất cả'}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {importResult.errors && importResult.errors.length > 0 ? (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13 }}>
+                      <div style={{ fontWeight: 600, color: '#dc2626', marginBottom: 4 }}>Chi tiết lỗi:</div>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {importResult.errors.slice(0, 10).map((err, idx) => (
+                          <li key={idx} style={{ color: '#991b1b' }}>
+                            Dòng {err.row}: {err.message}
+                          </li>
+                        ))}
+                        {importResult.errors.length > 10 ? (
+                          <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...và {importResult.errors.length - 10} lỗi khác</li>
+                        ) : null}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
 
             <div className="modal-footer">
+              {importType && importStep > 1 ? (
+                <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>
+                  ← Quay lại
+                </button>
+              ) : null}
               <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>
                 Hủy
               </button>
-              {importStep === 1 ? (
+              {!importType ? null : importStep === 1 ? (
                 <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
                   {importLoading ? 'Đang xử lý...' : 'Tiếp tục'}
                 </button>
@@ -967,6 +1502,19 @@ export default function StudentsPage() {
           </div>
         </div>
       ) : null}
+
+      <StudentModal
+        isOpen={modalOpen}
+        student={editingStudent}
+        departments={departments}
+        classes={classes}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingStudent(null);
+        }}
+        onSave={handleSaveStudent}
+        loading={actionLoading}
+      />
     </div>
   );
 }

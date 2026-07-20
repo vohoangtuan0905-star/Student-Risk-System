@@ -156,4 +156,125 @@ const deleteClass = async (req, res) => {
     }
 };
 
-module.exports = { getAllClasses, createClass, updateClass, deleteClass };
+const XLSX = require('xlsx');
+
+// Utilities
+const normalizeHeader = (value) => String(value || '').trim();
+
+const parseExcelBuffer = (buffer) => {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error('Không tìm thấy sheet trong file Excel');
+  const sheet = workbook.Sheets[sheetName];
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+};
+
+const buildHeaderIndex = (headers) => {
+  const map = new Map();
+  headers.forEach((header, idx) => {
+    const key = normalizeHeader(header);
+    if (key) map.set(key, idx);
+  });
+  return map;
+};
+
+const previewImportClasses = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn file Excel' });
+    const rows = parseExcelBuffer(req.file.buffer);
+    if (!rows.length) return res.status(400).json({ message: 'File Excel rỗng' });
+
+    const headers = rows[0].map(normalizeHeader);
+    const dataPreview = rows.slice(1, 6);
+    res.json({ headers, dataPreview, totalRows: Math.max(0, rows.length - 1) });
+  } catch (error) {
+    console.error('previewImportClasses error:', error);
+    res.status(500).json({ message: 'Lỗi server khi xem trước import Excel' });
+  }
+};
+
+const importClasses = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn file Excel' });
+    const mapping = req.body.mapping ? JSON.parse(req.body.mapping) : {};
+    
+    if (!mapping.class_code || !mapping.class_name || !mapping.department_code) {
+      return res.status(400).json({ message: 'Thiếu mapping cho class_code, class_name và department_code' });
+    }
+
+    const rows = parseExcelBuffer(req.file.buffer);
+    if (rows.length < 2) return res.status(400).json({ message: 'File Excel rỗng' });
+
+    const headers = rows[0];
+    const headerIndex = buildHeaderIndex(headers);
+    const getValueByHeader = (row, header) => {
+      if (!header) return '';
+      const idx = headerIndex.get(header);
+      return idx === undefined ? '' : row[idx];
+    };
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    const errors = [];
+
+    const [deptRows] = await db.query(`SELECT id, department_code FROM departments`);
+    const deptMap = new Map();
+    deptRows.forEach(d => deptMap.set(d.department_code, d.id));
+
+    const [gvRows] = await db.query(`SELECT id, lecturer_code FROM users WHERE role='teacher' AND lecturer_code IS NOT NULL`);
+    const gvMap = new Map();
+    gvRows.forEach(g => gvMap.set(g.lecturer_code, g.id));
+
+    const [existingRows] = await db.query(`SELECT id, class_code FROM classes`);
+    const existingMap = new Map();
+    existingRows.forEach(c => existingMap.set(c.class_code, c.id));
+
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const code = String(getValueByHeader(row, mapping.class_code)).trim();
+      const name = String(getValueByHeader(row, mapping.class_name)).trim();
+      const deptCode = String(getValueByHeader(row, mapping.department_code)).trim();
+      const lecturerCode = mapping.lecturer_code ? String(getValueByHeader(row, mapping.lecturer_code)).trim() : null;
+      const schoolYear = mapping.school_year ? String(getValueByHeader(row, mapping.school_year)).trim() : '2023-2027';
+
+      if (!code && !name) continue;
+      if (!code || !name || !deptCode) {
+        errors.push({ row: rowIndex + 1, message: 'Thiếu mã lớp, tên lớp hoặc mã khoa' });
+        continue;
+      }
+
+      const deptId = deptMap.get(deptCode);
+      if (!deptId) {
+        errors.push({ row: rowIndex + 1, message: `Không tìm thấy Khoa có mã: ${deptCode}` });
+        continue;
+      }
+
+      let homeroomId = null;
+      if (lecturerCode) {
+        homeroomId = gvMap.get(lecturerCode);
+        if (!homeroomId) {
+          errors.push({ row: rowIndex + 1, message: `Không tìm thấy Giảng viên có mã: ${lecturerCode}` });
+          continue;
+        }
+      }
+
+      if (existingMap.has(code)) {
+        await db.query(`UPDATE classes SET class_name = ?, department_id = ?, homeroom_teacher_id = ?, school_year = ? WHERE class_code = ?`, 
+          [name, deptId, homeroomId, schoolYear, code]);
+        updatedCount++;
+      } else {
+        const [result] = await db.query(`INSERT INTO classes (class_code, class_name, department_id, homeroom_teacher_id, school_year) VALUES (?, ?, ?, ?, ?)`, 
+          [code, name, deptId, homeroomId, schoolYear]);
+        existingMap.set(code, result.insertId);
+        createdCount++;
+      }
+    }
+
+    res.json({ message: 'Import Lớp học hoàn tất', createdCount, updatedCount, failedCount: errors.length, errors });
+  } catch (error) {
+    console.error('importClasses error:', error);
+    res.status(500).json({ message: 'Lỗi server khi import Lớp học' });
+  }
+};
+
+module.exports = { getAllClasses, createClass, updateClass, deleteClass, previewImportClasses, importClasses };

@@ -18,7 +18,10 @@ router.get('/', verifyToken, studentController.getAllStudents);
 // Xem trước import Excel
 router.post('/import/preview', verifyToken, requireAdmin, upload.single('file'), studentController.previewImportStudents);
 
-// Import Excel sinh viên
+// Import thông tin sinh viên (chỉ thông tin cá nhân, không cần HK)
+router.post('/import-info', verifyToken, requireAdmin, upload.single('file'), studentController.importStudentInfo);
+
+// Import Excel kết quả học tập (cần HK)
 router.post('/import', verifyToken, requireAdmin, upload.single('file'), studentController.importStudents);
 
 // Lấy chi tiết 1 sinh viên

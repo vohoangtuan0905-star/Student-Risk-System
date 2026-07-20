@@ -33,12 +33,17 @@ const IconEyeOff = () => (
 );
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@studentrisk.local');
-  const [password, setPassword] = useState('123456');
+  const savedEmail = localStorage.getItem('rememberEmail') || '';
+  const [email, setEmail] = useState(savedEmail || 'admin@studentrisk.local');
+  const [password, setPassword] = useState(savedEmail ? '' : '123456');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(!!savedEmail);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState({ type: '', text: '' });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -66,6 +71,8 @@ export default function LoginPage() {
       localStorage.setItem('user', JSON.stringify(res.data.user || {}));
       if (rememberMe) {
         localStorage.setItem('rememberEmail', email);
+      } else {
+        localStorage.removeItem('rememberEmail');
       }
       navigate('/');
     } catch (err) {
@@ -88,7 +95,7 @@ export default function LoginPage() {
         </div>
 
         <div className="login-right">
-          <h2 className="login-signin">Sign in</h2>
+          <h2 className="login-signin">Đăng nhập</h2>
           
           {error && (
             <div className="login-error">{error}</div>
@@ -110,7 +117,7 @@ export default function LoginPage() {
             </div>
 
             <div className="login-field">
-              <label>Password</label>
+              <label>Mật khẩu</label>
               <div className="login-input-wrapper">
                 <IconLock />
                 <input
@@ -133,21 +140,96 @@ export default function LoginPage() {
                   checked={rememberMe}
                   onChange={e => setRememberMe(e.target.checked)}
                 />
-                <span>Remember me</span>
+                <span>Ghi nhớ đăng nhập</span>
               </label>
-              <a href="#" className="login-forgot">Forgot Password?</a>
+              <button type="button" className="login-forgot" onClick={() => setShowForgot(true)}>Quên mật khẩu?</button>
             </div>
 
             <button type="submit" disabled={loading} className="login-button">
-              {loading ? 'Logging in...' : 'LOGIN'}
+              {loading ? 'Đang đăng nhập...' : 'ĐĂNG NHẬP'}
             </button>
           </form>
-
-          <p className="login-register">
-            Don't have an account? <a href="#">Register</a>
-          </p>
         </div>
       </div>
+
+      {/* Modal Quên mật khẩu */}
+      {showForgot ? (
+        <div className="modal-overlay" onClick={() => setShowForgot(false)}>
+          <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Quên mật khẩu</h2>
+              <button type="button" className="modal-close" onClick={() => setShowForgot(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 16, color: 'var(--gray-600)' }}>
+                Nhập email tài khoản của bạn. Hệ thống sẽ tạo mật khẩu tạm và gửi qua email.
+              </p>
+              <div className="form-group">
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  className="input"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="Nhập email của bạn"
+                  disabled={forgotLoading}
+                />
+              </div>
+              {forgotMsg.text ? (
+                <div style={{
+                  marginTop: 12, padding: '10px 14px', borderRadius: 8,
+                  background: forgotMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                  color: forgotMsg.type === 'success' ? '#15803d' : '#dc2626',
+                  border: `1px solid ${forgotMsg.type === 'success' ? '#86efac' : '#fca5a5'}`,
+                  fontSize: 13
+                }}>
+                  <div>{forgotMsg.text}</div>
+                  {forgotMsg.tempPassword ? (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#e0f2fe', border: '2px dashed #3b82f6', borderRadius: 8, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#475569', marginBottom: 4 }}>Mật khẩu tạm:</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#1e40af', letterSpacing: 2 }}>{forgotMsg.tempPassword}</div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => { setShowForgot(false); setForgotMsg({ type: '', text: '' }); }}>Đóng</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={forgotLoading}
+                onClick={async () => {
+                  if (!forgotEmail) {
+                    setForgotMsg({ type: 'error', text: 'Vui lòng nhập email' });
+                    return;
+                  }
+                  try {
+                    setForgotLoading(true);
+                    setForgotMsg({ type: '', text: '' });
+                    const res = await axiosClient.post('/auth/forgot-password', { email: forgotEmail });
+                    setForgotMsg({
+                      type: 'success',
+                      text: res.data?.message || 'Mật khẩu tạm đã được tạo!',
+                      tempPassword: res.data?.tempPassword || null
+                    });
+                    setForgotEmail('');
+                  } catch (err) {
+                    setForgotMsg({
+                      type: 'error',
+                      text: err?.response?.data?.message || 'Không thể đặt lại mật khẩu. Vui lòng thử lại.'
+                    });
+                  } finally {
+                    setForgotLoading(false);
+                  }
+                }}
+              >
+                {forgotLoading ? 'Đang xử lý...' : 'Gửi yêu cầu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,0 +1,23 @@
+{
+  "best_model_name": "LogisticRegression",
+  "version_label": "logistic_regression_20260622_121552",
+  "feature_columns": [
+    "gender",
+    "age_at_enrollment",
+    "gpa",
+    "tuition_debt",
+    "scholarship",
+    "failed_subjects",
+    "credits_enrolled",
+    "credits_passed",
+    "warning_level"
+  ],
+  "target_column": "target_binary",
+  "trained_at": "2026-06-22T12:15:52.628585",
+  "data_sources": {
+    "database": 14392,
+    "kaggle": 4424
+  },
+  "total_samples": 18816,
+  "positive_class_definition": "1 = dropout, 0 = not_dropout"
+}

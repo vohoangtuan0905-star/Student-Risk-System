@@ -8,6 +8,7 @@ import StudentsPage from './pages/StudentsPage';
 import StudentDetailPage from './pages/StudentDetailPage';
 import SemestersPage from './pages/SemestersPage';
 import AiPage from './pages/AiPage';
+import AiApproxPage from './pages/AiApproxPage';
 import DepartmentsPage from './pages/DepartmentsPage';
 import ClassesPage from './pages/ClassesPage';
 import UsersPage from './pages/UsersPage';
@@ -38,6 +39,7 @@ function App() {
           <Route path="lecturers" element={<LecturersPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="ai" element={<AiPage />} />
+          <Route path="ai/approx" element={<AiApproxPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

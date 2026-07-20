@@ -106,22 +106,22 @@ function Sparkline({ points, color, fillColor }) {
 
 // ── Stat card — Wieldy style với sparkline ───────────────────
 const SPARKLINES = {
-  blue:   [42, 55, 48, 62, 58, 70, 65, 72, 68, 80],
-  green:  [30, 38, 35, 42, 40, 48, 44, 52, 48, 55],
+  blue: [42, 55, 48, 62, 58, 70, 65, 72, 68, 80],
+  green: [30, 38, 35, 42, 40, 48, 44, 52, 48, 55],
   yellow: [8, 12, 10, 15, 13, 18, 14, 20, 17, 22],
-  red:    [5, 8, 6, 10, 8, 12, 9, 14, 11, 16],
+  red: [5, 8, 6, 10, 8, 12, 9, 14, 11, 16],
 };
 const SPARK_COLORS = {
-  blue:   '#3b82f6',
-  green:  '#22c55e',
+  blue: '#3b82f6',
+  green: '#22c55e',
   yellow: '#f59e0b',
-  red:    '#ef4444',
+  red: '#ef4444',
 };
 const TREND_COLORS = {
-  blue:   { up: true,  pct: '12%' },
-  green:  { up: true,  pct: '8%' },
-  yellow: { up: true,  pct: '5%' },
-  red:    { up: false, pct: '3%' },
+  blue: { up: true, pct: '12%' },
+  green: { up: true, pct: '8%' },
+  yellow: { up: true, pct: '5%' },
+  red: { up: false, pct: '3%' },
 };
 
 function StatCard({ label, value, color, icon: Icon, loading }) {
@@ -178,14 +178,14 @@ const formatRiskPercentage = (value, digits = 1) => {
 function RiskDonut({ safe, warning, danger, total }) {
   if (!total) return null;
   const r = 44, cx = 52, cy = 52, circumference = 2 * Math.PI * r;
-  const safeP    = safe    / total;
+  const safeP = safe / total;
   const warningP = warning / total;
-  const dangerP  = danger  / total;
+  const dangerP = danger / total;
 
   const segments = [
-    { pct: safeP,    color: '#22c55e', offset: 0 },
+    { pct: safeP, color: '#22c55e', offset: 0 },
     { pct: warningP, color: '#f59e0b', offset: safeP },
-    { pct: dangerP,  color: '#ef4444', offset: safeP + warningP },
+    { pct: dangerP, color: '#ef4444', offset: safeP + warningP },
   ];
 
   return (
@@ -241,10 +241,10 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [refreshTick, isAdmin]);
 
-  const total   = students.length;
-  const safe    = students.filter(s => s.risk_level === 'Safe').length;
+  const total = students.length;
+  const safe = students.filter(s => s.risk_level === 'Safe').length;
   const warning = students.filter(s => s.risk_level === 'Warning').length;
-  const danger  = students.filter(s => s.risk_level === 'Danger').length;
+  const danger = students.filter(s => s.risk_level === 'Danger').length;
 
   const topRisk = [...students]
     .filter(s => s.risk_level === 'Danger' || s.risk_level === 'Warning')
@@ -266,10 +266,10 @@ export default function DashboardPage() {
 
       {/* ── Stat cards — Wieldy style with sparklines ── */}
       <div className="wield-stats-grid">
-        <StatCard label="Tổng sinh viên"     value={total}   color="blue"   icon={IconUsers}    loading={loading} />
-        <StatCard label="Sinh viên an toàn"  value={safe}    color="green"  icon={IconShield}   loading={loading} />
-        <StatCard label="Sinh viên cảnh báo" value={warning} color="yellow" icon={IconAlert}    loading={loading} />
-        <StatCard label="Sinh viên nguy hiểm" value={danger}  color="red"    icon={IconXCircle}  loading={loading} />
+        <StatCard label="Tổng sinh viên" value={total} color="blue" icon={IconUsers} loading={loading} />
+        <StatCard label="Sinh viên an toàn" value={safe} color="green" icon={IconShield} loading={loading} />
+        <StatCard label="Sinh viên cảnh báo" value={warning} color="yellow" icon={IconAlert} loading={loading} />
+        <StatCard label="Sinh viên nguy hiểm" value={danger} color="red" icon={IconXCircle} loading={loading} />
       </div>
 
       {/* ── Main content row ── */}
@@ -345,9 +345,9 @@ export default function DashboardPage() {
               <RiskDonut safe={safe} warning={warning} danger={danger} total={total} />
               <div className="risk-donut-legend">
                 {[
-                  { label: 'An toàn',   count: safe,    color: '#22c55e' },
-                  { label: 'Cảnh báo',  count: warning, color: '#f59e0b' },
-                  { label: 'Nguy hiểm', count: danger,  color: '#ef4444' },
+                  { label: 'An toàn', count: safe, color: '#22c55e' },
+                  { label: 'Cảnh báo', count: warning, color: '#f59e0b' },
+                  { label: 'Nguy hiểm', count: danger, color: '#ef4444' },
                 ].map(item => (
                   <div key={item.label} className="risk-legend-item">
                     <span className="risk-legend-dot" style={{ background: item.color }} />
@@ -366,9 +366,9 @@ export default function DashboardPage() {
           <div className="value-list">
             {[
               { label: 'Tên mô hình', value: 'Logistic Regression' },
-              { label: 'Phiên bản',   value: 'v1.0.0' },
-              { label: 'Mục tiêu',    value: 'Dự báo nguy cơ bỏ học' },
-              { label: 'Trạng thái',  value: 'Đang hoạt động' },
+              { label: 'Phiên bản', value: 'v1.0.0' },
+              { label: 'Mục tiêu', value: 'Dự báo nguy cơ bỏ học' },
+              { label: 'Trạng thái', value: 'Đang hoạt động' },
             ].map(row => (
               <div key={row.label} className="value-row">
                 <span className="value-row__label">{row.label}</span>

@@ -187,8 +187,161 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+// Đổi mật khẩu
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập mật khẩu hiện tại và mật khẩu mới'
+      });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có ít nhất 6 ký tự'
+      });
+    }
+
+    const [users] = await db.query(
+      'SELECT id, password_hash FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    const isMatch = await bcrypt.compare(current_password, users[0].password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, userId]);
+
+    return res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+  } catch (error) {
+    console.error('changePassword error:', error);
+    return res.status(500).json({ success: false, message: 'Lỗi server khi đổi mật khẩu' });
+  }
+};
+
+// Quên mật khẩu — tạo mật khẩu tạm và gửi qua email
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập email' });
+    }
+
+    // Kiểm tra SMTP đã cấu hình chưa
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS
+      || process.env.SMTP_USER === 'your_email@gmail.com') {
+      return res.status(500).json({
+        success: false,
+        message: 'Chức năng gửi email chưa được cấu hình. Vui lòng liên hệ quản trị viên để đặt lại mật khẩu.'
+      });
+    }
+
+    // Tìm user theo email
+    const [users] = await db.query('SELECT id, full_name, email FROM users WHERE email = ?', [email]);
+
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản với email này' });
+    }
+
+    const user = users[0];
+
+    // Tạo mật khẩu tạm ngẫu nhiên 8 ký tự
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let tempPassword = '';
+    for (let i = 0; i < 8; i++) {
+      tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    // Hash và lưu mật khẩu tạm
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, user.id]);
+
+    // Gửi email
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+    await transporter.sendMail({
+      from: `"Hệ thống Quản lý Rủi ro SV" <${fromAddress}>`,
+      to: user.email,
+      subject: '[Student Risk System] Đặt lại mật khẩu',
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+          <div style="background: linear-gradient(135deg, #1e293b, #334155); padding: 24px; text-align: center;">
+            <h2 style="color: #fff; margin: 0; font-size: 16px;">🔐 Đặt Lại Mật Khẩu</h2>
+            <p style="color: #94a3b8; margin: 6px 0 0; font-size: 12px;">Hệ thống Quản lý Rủi ro Sinh viên</p>
+          </div>
+          <div style="padding: 24px;">
+            <p style="color: #334155; font-size: 14px;">Xin chào <strong>${user.full_name}</strong>,</p>
+            <p style="color: #475569; font-size: 14px;">Bạn đã yêu cầu đặt lại mật khẩu. Mật khẩu tạm thời của bạn là:</p>
+            <div style="background: #f1f5f9; border: 2px dashed #3b82f6; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">
+              <span style="font-size: 24px; font-weight: 700; color: #1e40af; letter-spacing: 2px;">${tempPassword}</span>
+            </div>
+            <p style="color: #475569; font-size: 13px; line-height: 1.6;">
+              ⚠️ Vui lòng đăng nhập với mật khẩu tạm ở trên và <strong>đổi mật khẩu mới</strong> ngay trong phần "Xem hồ sơ" để đảm bảo an toàn tài khoản.
+            </p>
+          </div>
+          <div style="background: #f1f5f9; padding: 12px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 11px; margin: 0;">Email này được gửi tự động. Vui lòng không trả lời.</p>
+            <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0;">© ${new Date().getFullYear()} Student Risk System</p>
+          </div>
+        </div>
+      `
+    });
+
+    console.log(`✅ Đã gửi email đặt lại mật khẩu cho ${user.email}`);
+
+    return res.json({
+      success: true,
+      message: `Mật khẩu tạm đã được gửi đến ${user.email}. Vui lòng kiểm tra hộp thư (và thư mục Spam).`
+    });
+  } catch (error) {
+    console.error('forgotPassword error:', error);
+
+    // Phân biệt lỗi SMTP vs lỗi khác
+    if (error.code === 'EAUTH' || error.responseCode === 535) {
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi xác thực SMTP. Vui lòng kiểm tra lại cấu hình email trong file .env'
+      });
+    }
+    if (error.code === 'ESOCKET' || error.code === 'ECONNREFUSED') {
+      return res.status(500).json({
+        success: false,
+        message: 'Không kết nối được tới máy chủ email. Vui lòng kiểm tra SMTP_HOST và SMTP_PORT.'
+      });
+    }
+
+    return res.status(500).json({ success: false, message: 'Lỗi server khi đặt lại mật khẩu: ' + error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
-  getCurrentUser
+  getCurrentUser,
+  changePassword,
+  forgotPassword
 };

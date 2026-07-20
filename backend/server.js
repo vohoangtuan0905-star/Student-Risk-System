@@ -12,6 +12,7 @@ const academicRecordRoutes = require('./routes/academicRecordRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const usersRoutes = require('./routes/usersRoutes');
 const lecturerRoutes = require('./routes/lecturerRoutes');
+const emailRoutes = require('./routes/emailRoutes');
 const lecturerController = require('./controllers/lecturerController');
 const verifyToken = require('./middleware/authMiddleware');
 const { requireAdmin } = require('./middleware/roleMiddleware');
@@ -34,6 +35,7 @@ app.use('/api/academic-records', academicRecordRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/lecturers', lecturerRoutes);
+app.use('/api/email', emailRoutes);
 
 // Explicit lecturers routes to avoid runtime route mount mismatch
 app.get('/api/lecturers', verifyToken, requireAdmin, lecturerController.getAllLecturers);

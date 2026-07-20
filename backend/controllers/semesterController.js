@@ -2,6 +2,22 @@ const db = require('../config/db');
 
 const getAllSemesters = async (req, res) => {
   try {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayText = `${now.getFullYear()}-${month}-${day}`;
+
+    await db.query(
+      `
+        UPDATE semesters
+        SET is_closed = 1
+        WHERE is_closed = 0
+          AND end_date IS NOT NULL
+          AND end_date < ?
+      `,
+      [todayText]
+    );
+
     const [rows] = await db.query(`
       SELECT id, academic_year, semester_no, semester_name, start_date, end_date, is_closed, created_at, updated_at
       FROM semesters

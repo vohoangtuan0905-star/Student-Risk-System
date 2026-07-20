@@ -71,6 +71,7 @@ const IconAlert = () => (
   </svg>
 );
 
+
 function StatCard({ label, value, color, icon: Icon, helper }) {
   return (
     <div className={`stat-card stat-card--${color}`}>
@@ -97,6 +98,38 @@ function formatDate(value) {
     month: '2-digit',
     year: 'numeric'
   }).format(date);
+}
+
+function getSemesterShortLabel(semesterNo) {
+  const value = Number(semesterNo);
+  if (value === 1) return 'HK1';
+  if (value === 2) return 'HK2';
+  if (value === 3) return 'HKHe';
+  return semesterNo ?? '-';
+}
+
+function parseDateOnly(value) {
+  if (!value) return null;
+  const text = String(value).slice(0, 10);
+  const date = new Date(`${text}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function getSemesterStatus(semester, now) {
+  const start = parseDateOnly(semester.start_date);
+  const end = parseDateOnly(semester.end_date);
+
+  if (start && now < start) {
+    return { key: 'upcoming', label: 'Chưa bắt đầu', className: 'badge badge-warning' };
+  }
+
+  const isClosed = Number(semester.is_closed) === 1;
+  if (isClosed || (end && now > end)) {
+    return { key: 'ended', label: 'Đã kết thúc', className: 'badge badge-neutral' };
+  }
+
+  return { key: 'open', label: 'Đang mở', className: 'badge badge-safe' };
 }
 
 const EMPTY_FORM = {
@@ -143,9 +176,10 @@ export default function SemestersPage() {
   };
 
   const stats = useMemo(() => {
-    const open = semesters.filter((sem) => Number(sem.is_closed) !== 1).length;
-    const closed = semesters.filter((sem) => Number(sem.is_closed) === 1).length;
-    return { total: semesters.length, open, closed };
+    const now = new Date();
+    const open = semesters.filter((sem) => getSemesterStatus(sem, now).key === 'open').length;
+    const ended = semesters.filter((sem) => getSemesterStatus(sem, now).key === 'ended').length;
+    return { total: semesters.length, open, ended };
   }, [semesters]);
 
   const handleOpenModal = (semester = null) => {
@@ -244,6 +278,7 @@ export default function SemestersPage() {
   const handleRefresh = () => {
     fetchSemesters();
   };
+
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(semesters.length / pageSize)),
     [semesters.length, pageSize]
@@ -307,11 +342,11 @@ export default function SemestersPage() {
           helper="Học kỳ chưa khóa"
         />
         <StatCard
-          label="Đã khóa"
-          value={stats.closed}
+          label="Đã kết thúc"
+          value={stats.ended}
           color="yellow"
           icon={IconLock}
-          helper="Học kỳ đã hoàn tất"
+          helper="Học kỳ đã kết thúc"
         />
       </div>
 
@@ -363,10 +398,10 @@ export default function SemestersPage() {
               </thead>
               <tbody>
                 {paginatedSemesters.map((semester) => {
-                  const isClosed = Number(semester.is_closed) === 1;
+                  const status = getSemesterStatus(semester, new Date());
                   return (
                     <tr key={semester.id}>
-                      <td className="mono">{semester.semester_no ?? '-'}</td>
+                      <td className="mono">{getSemesterShortLabel(semester.semester_no)}</td>
                       <td style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
                         {semester.semester_name || '-'}
                       </td>
@@ -374,8 +409,8 @@ export default function SemestersPage() {
                       <td>{formatDate(semester.start_date)}</td>
                       <td>{formatDate(semester.end_date)}</td>
                       <td>
-                        <span className={isClosed ? 'badge badge-neutral' : 'badge badge-safe'}>
-                          {isClosed ? 'Đã khóa' : 'Đang mở'}
+                        <span className={status.className}>
+                          {status.label}
                         </span>
                       </td>
                       <td className="data-table__cell--actions">
@@ -457,9 +492,9 @@ export default function SemestersPage() {
                 value={formData.semester_no}
                 onChange={(e) => setFormData({ ...formData, semester_no: e.target.value })}
               >
-                <option value="1">Kỳ 1</option>
-                <option value="2">Kỳ 2</option>
-                <option value="3">Kỳ hè</option>
+                <option value="1">HK1</option>
+                <option value="2">HK2</option>
+                <option value="3">HKHe</option>
               </select>
             </div>
 
@@ -525,6 +560,7 @@ export default function SemestersPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

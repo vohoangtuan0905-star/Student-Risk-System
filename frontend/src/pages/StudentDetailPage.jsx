@@ -57,6 +57,21 @@ const IconXCircle = () => (
   </svg>
 );
 
+const IconPrinter = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 6 2 18 2 18 9" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </svg>
+);
+
+const IconMail = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+    <polyline points="22,6 12,13 2,6" />
+  </svg>
+);
+
 function StatCard({ label, value, color, icon: Icon, helper }) {
   return (
     <div className={`stat-card stat-card--${color}`}>
@@ -120,7 +135,8 @@ export default function StudentDetailPage() {
     fetchStudentDetail();
   }, [id]);
 
-  const hasAcademicData = (records.length > 0 ? records : history).length > 0;
+  const recordSource = useMemo(() => (records.length > 0 ? records : history), [records, history]);
+  const hasAcademicData = recordSource.length > 0;
 
   const handlePredictAgain = async () => {
     if (!hasAcademicData) {
@@ -142,32 +158,87 @@ export default function StudentDetailPage() {
 
       alert(
         err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          'Dự đoán lại AI thất bại'
+        err?.response?.data?.error ||
+        'Dự đoán lại AI thất bại'
       );
     } finally {
       setPredicting(false);
     }
   };
 
-  const chartData = useMemo(() => {
-    const source = records.length > 0 ? records : history;
+  const handlePrint = () => {
+    window.print();
+  };
 
-    return source.map((item, index) => ({
+  const normalizedRecords = useMemo(() => {
+    if (!recordSource.length) return [];
+    const normalized = recordSource.map((item, index) => ({
+      ...item,
+      __index: index,
+      __year: item.academic_year || '',
+      __semesterNo: item.semester_no ?? item.semester ?? null
+    }));
+
+    normalized.sort((a, b) => {
+      if (a.__year && b.__year && a.__year !== b.__year) {
+        return String(a.__year).localeCompare(String(b.__year), 'vi');
+      }
+      if (a.__semesterNo != null && b.__semesterNo != null && a.__semesterNo !== b.__semesterNo) {
+        return Number(a.__semesterNo) - Number(b.__semesterNo);
+      }
+      return a.__index - b.__index;
+    });
+
+    return normalized.map(({ __index, __year, __semesterNo, ...rest }) => rest);
+  }, [recordSource]);
+
+  const chartData = useMemo(() => (
+    normalizedRecords.map((item, index) => ({
       semester:
         item.semester_name ||
         item.semester_label ||
         `Kỳ ${index + 1}`,
       gpa: Number(item.gpa || 0),
       risk_percentage: Number(item.risk_percentage || 0)
-    }));
-  }, [records, history]);
+    }))
+  ), [normalizedRecords]);
 
-  const latestRecord = useMemo(() => {
-    const source = records.length > 0 ? records : history;
-    if (!source.length) return null;
-    return source[0];
-  }, [records, history]);
+  const latestRecord = useMemo(() => (
+    normalizedRecords.length ? normalizedRecords[normalizedRecords.length - 1] : null
+  ), [normalizedRecords]);
+
+  const previousRecord = useMemo(() => (
+    normalizedRecords.length >= 2 ? normalizedRecords[normalizedRecords.length - 2] : null
+  ), [normalizedRecords]);
+
+  const deltaMetrics = useMemo(() => {
+    if (!previousRecord || !latestRecord) return null;
+    const toNumber = (value) => (value == null || value === '' ? null : Number(value));
+
+    const gpaPrev = toNumber(previousRecord.gpa);
+    const gpaLast = toNumber(latestRecord.gpa);
+    const riskPrev = toNumber(previousRecord.risk_percentage);
+    const riskLast = toNumber(latestRecord.risk_percentage);
+    const absPrev = toNumber(previousRecord.absences);
+    const absLast = toNumber(latestRecord.absences);
+    const warnPrev = toNumber(previousRecord.warning_level);
+    const warnLast = toNumber(latestRecord.warning_level);
+
+    return {
+      gpaPrev,
+      gpaLast,
+      gpaDelta: gpaPrev != null && gpaLast != null ? gpaLast - gpaPrev : null,
+      riskPrev,
+      riskLast,
+      riskDelta: riskPrev != null && riskLast != null ? riskLast - riskPrev : null,
+      absPrev,
+      absLast,
+      absDelta: absPrev != null && absLast != null ? absLast - absPrev : null,
+      warnPrev,
+      warnLast,
+      warnDelta: warnPrev != null && warnLast != null ? warnLast - warnPrev : null
+    };
+  }, [previousRecord, latestRecord]);
 
   const getRiskClass = (riskLevel) => {
     if (riskLevel === 'Danger') return 'badge badge-danger';
@@ -201,6 +272,49 @@ export default function StudentDetailPage() {
     if (Number.isNaN(d.getTime())) return String(value);
     return new Intl.DateTimeFormat('vi-VN').format(d);
   };
+
+  const formatDelta = (value, digits = 2) => {
+    if (value == null || Number.isNaN(value)) return '-';
+    const fixed = Number(value).toFixed(digits);
+    return value > 0 ? `+${fixed}` : fixed;
+  };
+
+  const getDeltaClass = (value, direction = 'up') => {
+    if (value == null || Number.isNaN(value) || value === 0) {
+      return 'badge badge-gray';
+    }
+
+    const isPositive = value > 0;
+    const isGood = direction === 'up' ? isPositive : !isPositive;
+    return isGood ? 'badge badge-safe' : 'badge badge-danger';
+  };
+
+  const summaryInsight = useMemo(() => {
+    if (!deltaMetrics) return null;
+
+    const gpaDelta = deltaMetrics.gpaDelta ?? 0;
+    const riskDelta = deltaMetrics.riskDelta ?? 0;
+    const warnDelta = deltaMetrics.warnDelta ?? 0;
+
+    if (gpaDelta >= 0.2 && riskDelta <= -5 && warnDelta <= 0) {
+      return {
+        label: 'Xu hướng tích cực',
+        note: 'Kỳ gần nhất cải thiện so với kỳ trước (GPA tăng, rủi ro giảm).'
+      };
+    }
+
+    if (gpaDelta <= -0.2 || riskDelta >= 5 || warnDelta > 0) {
+      return {
+        label: 'Cần chú ý',
+        note: 'Kỳ gần nhất xấu hơn kỳ trước (GPA giảm, risk tăng hoặc warning tăng).'
+      };
+    }
+
+    return {
+      label: 'Ổn định',
+      note: 'Biến động nhỏ giữa kỳ trước và kỳ gần nhất.'
+    };
+  }, [deltaMetrics]);
 
   if (loading) {
     return (
@@ -247,8 +361,15 @@ export default function StudentDetailPage() {
     );
   }
 
+
   return (
     <div className="page-wrapper">
+      <div className="print-header">
+        <div className="print-header__title">HỆ THỐNG DỰ BÁO RỦI RO SINH VIÊN</div>
+        <div className="print-header__subtitle">Báo cáo chi tiết sinh viên: {student?.full_name} — {student?.student_code}</div>
+        <div className="print-header__date">Ngày in: {new Date().toLocaleDateString('vi-VN')}</div>
+      </div>
+
       <div className="page-header">
         <div className="page-header__content">
           <h1 className="page-title">Chi tiết sinh viên</h1>
@@ -259,6 +380,10 @@ export default function StudentDetailPage() {
           <button className="btn btn-secondary" onClick={() => navigate('/students')}>
             <IconArrowLeft />
             Quay lại
+          </button>
+          <button className="btn btn-secondary" onClick={handlePrint}>
+            <IconPrinter />
+            In báo cáo
           </button>
           <button className="btn btn-primary" onClick={handlePredictAgain} disabled={predicting}>
             <IconRefresh />
@@ -296,7 +421,7 @@ export default function StudentDetailPage() {
             <div><strong>Trạng thái:</strong> {getStatusLabel(student.actual_status)}</div>
 
             <div><strong>Khoa:</strong> {student.department_name || '-'}</div>
-            <div><strong>Lớp:</strong> {student.class_name || '-'}</div>
+            <div><strong>Lớp:</strong> {student.class_code || student.class_name || '-'}</div>
             <div><strong>Năm nhập học:</strong> {student.enrollment_year ?? '-'}</div>
 
             <div><strong>Email:</strong> {student.email || '-'}</div>
@@ -316,6 +441,84 @@ export default function StudentDetailPage() {
         <StatCard label="Mức rủi ro" value={<span className={getRiskClass(student.risk_level || 'Safe')}>{getRiskLabel(student.risk_level || 'Safe')}</span>} color={student.risk_level === 'Danger' ? 'red' : student.risk_level === 'Warning' ? 'yellow' : 'green'} icon={IconShield} helper="Phân loại theo ngưỡng hiện tại" />
         <StatCard label="Warning level" value={latestRecord?.warning_level ?? '-'} color="red" icon={IconXCircle} helper="Tín hiệu cảnh báo trong học kỳ gần nhất" />
       </div>
+
+      {deltaMetrics ? (
+        <div className="card">
+          <div className="section-toolbar">
+            <div>
+              <div className="card__title">So sánh kỳ trước và kỳ gần nhất</div>
+              <div className="card__subtitle">Hiển thị thay đổi chỉ số quan trọng giữa 2 học kỳ mới nhất</div>
+            </div>
+            {summaryInsight ? (
+              <div className="section-toolbar__meta">
+                <span className="badge badge-primary">{summaryInsight.label}</span>
+              </div>
+            ) : null}
+          </div>
+
+          {summaryInsight ? (
+            <div className="card" style={{ margin: '0 16px 16px', padding: '12px 14px', background: 'var(--gray-50)' }}>
+              <div style={{ fontWeight: 600 }}>{summaryInsight.label}</div>
+              <div className="card__subtitle" style={{ marginTop: 4 }}>{summaryInsight.note}</div>
+            </div>
+          ) : null}
+
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Chỉ số</th>
+                  <th>Kỳ trước</th>
+                  <th>Kỳ gần nhất</th>
+                  <th>Chênh lệch</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>GPA</td>
+                  <td>{deltaMetrics.gpaPrev ?? '-'}</td>
+                  <td>{deltaMetrics.gpaLast ?? '-'}</td>
+                  <td>
+                    <span className={getDeltaClass(deltaMetrics.gpaDelta, 'up')}>
+                      {formatDelta(deltaMetrics.gpaDelta)}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Risk %</td>
+                  <td>{deltaMetrics.riskPrev != null ? Number(deltaMetrics.riskPrev).toFixed(2) : '-'}</td>
+                  <td>{deltaMetrics.riskLast != null ? Number(deltaMetrics.riskLast).toFixed(2) : '-'}</td>
+                  <td>
+                    <span className={getDeltaClass(deltaMetrics.riskDelta, 'down')}>
+                      {formatDelta(deltaMetrics.riskDelta)}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Vắng mặt</td>
+                  <td>{deltaMetrics.absPrev ?? '-'}</td>
+                  <td>{deltaMetrics.absLast ?? '-'}</td>
+                  <td>
+                    <span className={getDeltaClass(deltaMetrics.absDelta, 'down')}>
+                      {formatDelta(deltaMetrics.absDelta, 0)}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Warning level</td>
+                  <td>{deltaMetrics.warnPrev ?? '-'}</td>
+                  <td>{deltaMetrics.warnLast ?? '-'}</td>
+                  <td>
+                    <span className={getDeltaClass(deltaMetrics.warnDelta, 'down')}>
+                      {formatDelta(deltaMetrics.warnDelta, 0)}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className="card">
         <div className="section-toolbar">
@@ -416,14 +619,14 @@ export default function StudentDetailPage() {
             </thead>
 
             <tbody>
-              {(records.length > 0 ? records : history).length === 0 ? (
+              {normalizedRecords.length === 0 ? (
                 <tr>
                   <td colSpan="12" className="empty-state">
                     Chưa có lịch sử học tập
                   </td>
                 </tr>
               ) : (
-                (records.length > 0 ? records : history).map((item, index) => (
+                normalizedRecords.map((item, index) => (
                   <tr key={item.id || index}>
                     <td>{item.semester_name || item.semester_label || '-'}</td>
                     <td>{item.gpa ?? '-'}</td>

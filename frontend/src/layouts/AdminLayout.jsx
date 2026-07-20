@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
+import axiosClient from '../api/axiosClient';
 
 // ── SVG Icons (inline, no extra deps) ──────────────────────────
 const IconGrid      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>;
@@ -44,6 +45,10 @@ export default function AdminLayout() {
   const user      = JSON.parse(localStorage.getItem('user') || '{}');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMsg, setPwMsg] = useState({ type: '', text: '' });
   const userMenuRef = useRef(null);
 
   const handleLogout = () => {
@@ -181,7 +186,7 @@ export default function AdminLayout() {
 
               {userMenuOpen ? (
                 <div className="topbar__user-menu" role="menu">
-                  <button type="button" className="topbar__user-menu-item" role="menuitem">
+                  <button type="button" className="topbar__user-menu-item" role="menuitem" onClick={() => { setProfileOpen(true); setUserMenuOpen(false); setPwMsg({ type: '', text: '' }); setPwForm({ current_password: '', new_password: '', confirm_password: '' }); }}>
                     Xem hồ sơ
                   </button>
                   <button
@@ -210,6 +215,85 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* ── Profile Modal ──────────────────────────── */}
+      {profileOpen ? (
+        <div className="modal-overlay" onClick={() => setProfileOpen(false)}>
+          <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Hồ sơ cá nhân</h2>
+              <button type="button" className="modal-close" onClick={() => setProfileOpen(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                <div><strong>Họ tên:</strong><br/>{user.full_name || '-'}</div>
+                <div><strong>Email:</strong><br/>{user.email || '-'}</div>
+                <div><strong>Vai trò:</strong><br/>{user.role === 'admin' ? 'Quản trị viên' : 'Giảng viên'}</div>
+                <div><strong>ID:</strong><br/>{user.id || '-'}</div>
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--gray-200)', margin: '16px 0' }}/>
+
+              <div className="card__title" style={{ marginBottom: 12 }}>Đổi mật khẩu</div>
+              <div className="form-group">
+                <label className="label">Mật khẩu hiện tại</label>
+                <input type="password" className="input" value={pwForm.current_password} onChange={(e) => setPwForm(p => ({ ...p, current_password: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="label">Mật khẩu mới</label>
+                <input type="password" className="input" value={pwForm.new_password} onChange={(e) => setPwForm(p => ({ ...p, new_password: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="label">Xác nhận mật khẩu mới</label>
+                <input type="password" className="input" value={pwForm.confirm_password} onChange={(e) => setPwForm(p => ({ ...p, confirm_password: e.target.value }))} />
+              </div>
+
+              {pwMsg.text ? (
+                <div style={{ padding: '8px 12px', borderRadius: 8, marginTop: 8, background: pwMsg.type === 'success' ? '#f0fdf4' : '#fef2f2', color: pwMsg.type === 'success' ? '#15803d' : '#dc2626', border: `1px solid ${pwMsg.type === 'success' ? '#86efac' : '#fca5a5'}` }}>
+                  {pwMsg.text}
+                </div>
+              ) : null}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setProfileOpen(false)}>Đóng</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={pwLoading}
+                onClick={async () => {
+                  if (!pwForm.current_password || !pwForm.new_password) {
+                    setPwMsg({ type: 'error', text: 'Vui lòng nhập đủ mật khẩu' });
+                    return;
+                  }
+                  if (pwForm.new_password !== pwForm.confirm_password) {
+                    setPwMsg({ type: 'error', text: 'Mật khẩu mới không khớp' });
+                    return;
+                  }
+                  if (pwForm.new_password.length < 6) {
+                    setPwMsg({ type: 'error', text: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+                    return;
+                  }
+                  try {
+                    setPwLoading(true);
+                    const res = await axiosClient.put('/auth/change-password', {
+                      current_password: pwForm.current_password,
+                      new_password: pwForm.new_password
+                    });
+                    setPwMsg({ type: 'success', text: res.data?.message || 'Đổi mật khẩu thành công!' });
+                    setPwForm({ current_password: '', new_password: '', confirm_password: '' });
+                  } catch (err) {
+                    setPwMsg({ type: 'error', text: err?.response?.data?.message || 'Đổi mật khẩu thất bại' });
+                  } finally {
+                    setPwLoading(false);
+                  }
+                }}
+              >
+                {pwLoading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

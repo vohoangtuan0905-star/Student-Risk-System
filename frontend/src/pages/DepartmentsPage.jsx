@@ -2,6 +2,7 @@ import Pagination from "../components/Pagination";
 import { useEffect, useMemo, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
+import * as XLSX from 'xlsx';
 
 const IconBuilding = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -198,6 +199,194 @@ function ConfirmDeleteModal({ isOpen, departmentName, onConfirm, onCancel, loadi
   );
 }
 
+const IconUpload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+function ImportModal({ isOpen, onClose }) {
+  const [importFile, setImportFile] = useState(null);
+  const [importStep, setImportStep] = useState(1);
+  const [importColumns, setImportColumns] = useState([]);
+  const [importDataPreview, setImportDataPreview] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [importMapping, setImportMapping] = useState({
+    department_code: '',
+    department_name: '',
+    description: ''
+  });
+
+  if (!isOpen) return null;
+
+  const closeImportModal = () => {
+    setImportFile(null);
+    setImportStep(1);
+    setImportColumns([]);
+    setImportDataPreview([]);
+    setImportError('');
+    setImportResult(null);
+    setImportMapping({ department_code: '', department_name: '', description: '' });
+    onClose();
+  };
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([{
+      'M„ Khoa': 'CNTT',
+      'TÍn Khoa': 'CÙng ngh? thÙng tin',
+      'MÙ t?': 'Khoa CÙng ngh? thÙng tin'
+    }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'mau_import_khoa.xlsx');
+  };
+
+  const handlePreviewImport = async () => {
+    if (!importFile) return setImportError('Vui lÚng ch?n file Excel');
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      const res = await axiosClient.post('/departments/import/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImportColumns(res.data.headers || []);
+      setImportDataPreview(res.data.dataPreview || []);
+      setImportStep(2);
+      
+      const headers = res.data.headers || [];
+      const codeCol = headers.find(h => h.toLowerCase().includes('m„'));
+      const nameCol = headers.find(h => h.toLowerCase().includes('tÍn'));
+      const descCol = headers.find(h => h.toLowerCase().includes('mÙ t?'));
+      setImportMapping({
+        department_code: codeCol || headers[0] || '',
+        department_name: nameCol || headers[1] || '',
+        description: descCol || headers[2] || ''
+      });
+    } catch (err) {
+      setImportError(err.response?.data?.message || 'L?i khi d?c file Excel');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleSubmitImport = async () => {
+    if (!importMapping.department_code || !importMapping.department_name) {
+      return setImportError('Vui lÚng map d?y d? M„ khoa v‡ TÍn khoa');
+    }
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('mapping', JSON.stringify(importMapping));
+      const res = await axiosClient.post('/departments/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImportResult(res.data);
+      setImportStep(3);
+    } catch (err) {
+      setImportError(err.response?.data?.message || 'L?i khi import d? li?u');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={closeImportModal}>
+      <div className="modal modal--large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Import Khoa t? Excel</h2>
+          <button className="modal-close" onClick={closeImportModal} disabled={importLoading}><IconX /></button>
+        </div>
+        <div className="modal-body">
+          {importStep === 1 && (
+            <>
+              <div className="form-group">
+                <label className="label">Ch?n file Excel *</label>
+                <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">
+                    T?i file m?u
+                  </button>
+                </div>
+              </div>
+              {importError && <div className="form-error">{importError}</div>}
+            </>
+          )}
+          {importStep === 2 && (
+            <>
+              <div className="card__subtitle">GhÈp c?t d? li?u</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div className="form-group">
+                  <label className="label">C?t M„ khoa *</label>
+                  <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
+                    <option value="">-- Ch?n c?t --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">C?t TÍn khoa *</label>
+                  <select className="input" value={importMapping.department_name} onChange={(e) => setImportMapping(p => ({ ...p, department_name: e.target.value }))}>
+                    <option value="">-- Ch?n c?t --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">C?t MÙ t?</label>
+                  <select className="input" value={importMapping.description} onChange={(e) => setImportMapping(p => ({ ...p, description: e.target.value }))}>
+                    <option value="">-- Ch?n c?t (T˘y ch?n) --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              {importError && <div className="form-error">{importError}</div>}
+            </>
+          )}
+          {importStep === 3 && importResult && (
+            <>
+              <div className="card__subtitle">K?t qu? import</div>
+              <div>ThÍm m?i: {importResult.createdCount || 0}</div>
+              <div>C?p nh?t: {importResult.updatedCount || 0}</div>
+              <div>L?i: {importResult.failedCount || 0}</div>
+              {importResult.errors?.length > 0 && (
+                <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto', background: '#fee2e2', padding: 8, borderRadius: 4 }}>
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {importResult.errors.slice(0,10).map((err, i) => (
+                      <li key={i} style={{ color: '#991b1b' }}>DÚng {err.row}: {err.message}</li>
+                    ))}
+                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...v‡ {importResult.errors.length - 10} l?i kh·c</li>}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="modal-footer">
+          {importStep > 1 && importStep < 3 && (
+            <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>Quay l?i</button>
+          )}
+          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>–Ûng</button>
+          {importStep === 1 ? (
+            <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
+              {importLoading ? '–ang t?i...' : 'Ti?p t?c'}
+            </button>
+          ) : importStep === 2 ? (
+            <button type="button" className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>
+              {importLoading ? '–ang import...' : 'Import'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -205,6 +394,7 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingDept, setEditingDept] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -306,7 +496,10 @@ export default function DepartmentsPage() {
         subtitle="Th√™m, ch·ªânh s·ª≠a, x√≥a khoa h·ªçc"
         actions={
           <>
-            <button
+            <button className="btn btn-secondary" onClick={() => setImportModalOpen(true)} disabled={loading}>
+              <IconUpload />
+              Import Khoa
+            </button><button
               className="btn btn-secondary"
               onClick={fetchDepartments}
               disabled={loading}
@@ -432,6 +625,13 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Modals */}
+      <ImportModal
+        isOpen={importModalOpen}
+        onClose={() => {
+          setImportModalOpen(false);
+          fetchDepartments();
+        }}
+      />
       <DepartmentModal
         isOpen={modalOpen}
         department={editingDept}
@@ -453,3 +653,5 @@ export default function DepartmentsPage() {
     </div>
   );
 }
+
+

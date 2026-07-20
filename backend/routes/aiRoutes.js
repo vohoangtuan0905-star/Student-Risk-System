@@ -9,6 +9,7 @@ router.get('/current-model', verifyToken, aiController.getCurrentModel);
 router.post('/predict', verifyToken, aiController.predictStudentRisk);
 router.post('/predict-approx', verifyToken, aiController.predictStudentRiskApprox);
 router.post('/predict-by-student/:studentId', verifyToken, aiController.predictByStudentId);
+router.post('/predict-all', verifyToken, requireAdmin, aiController.batchPredictAll);
 router.post('/retrain', verifyToken, requireAdmin, aiController.retrainModel);
 
 module.exports = router;

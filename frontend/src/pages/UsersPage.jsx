@@ -56,6 +56,13 @@ const IconX = () => (
   </svg>
 );
 
+const IconSearch = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
 const IconCheck = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
@@ -184,7 +191,6 @@ function UserModal({ isOpen, user, departments, onClose, onSave, loading }) {
               className={`input ${errors.email ? 'input--error' : ''}`}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={!!user}
               placeholder="e.g., user@example.com"
             />
             {errors.email && <div className="form-error">{errors.email}</div>}
@@ -329,6 +335,9 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('name-asc');
 
   const fetchData = async () => {
     try {
@@ -451,22 +460,54 @@ export default function UsersPage() {
       </div>
     );
   };
+
+  const filteredUsers = useMemo(() => {
+    const kw = keyword.toLowerCase();
+    return users.filter((usr) => {
+      const matchKeyword = !kw
+        || (usr.full_name || '').toLowerCase().includes(kw)
+        || (usr.email || '').toLowerCase().includes(kw);
+      const matchRole = roleFilter === 'ALL' || usr.role === roleFilter;
+      return matchKeyword && matchRole;
+    });
+  }, [users, keyword, roleFilter]);
+
+  const sortedUsers = useMemo(() => {
+    const arr = [...filteredUsers];
+    switch (sortBy) {
+      case 'name-asc':
+        return arr.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'));
+      case 'name-desc':
+        return arr.sort((a, b) => (b.full_name || '').localeCompare(a.full_name || '', 'vi'));
+      case 'email-asc':
+        return arr.sort((a, b) => (a.email || '').localeCompare(b.email || '', 'vi'));
+      case 'email-desc':
+        return arr.sort((a, b) => (b.email || '').localeCompare(a.email || '', 'vi'));
+      case 'newest':
+        return arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      case 'oldest':
+        return arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+      default:
+        return arr;
+    }
+  }, [filteredUsers, sortBy]);
+
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(users.length / pageSize)),
-    [users.length, pageSize]
+    () => Math.max(1, Math.ceil(sortedUsers.length / pageSize)),
+    [sortedUsers.length, pageSize]
   );
 
   const paginatedUsers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return users.slice(startIndex, startIndex + pageSize);
-  }, [users, currentPage, pageSize]);
+    return sortedUsers.slice(startIndex, startIndex + pageSize);
+  }, [sortedUsers, currentPage, pageSize]);
 
-  const pageStart = users.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const pageEnd = Math.min(currentPage * pageSize, users.length);
+  const pageStart = sortedUsers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, sortedUsers.length);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize]);
+  }, [keyword, roleFilter, sortBy, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -501,8 +542,50 @@ export default function UsersPage() {
             <div className="card__subtitle">Quản lý tài khoản người dùng và vai trò hệ thống</div>
           </div>
           <div className="section-toolbar__meta">
-            {loading ? '...' : `${users.length} người dùng`}
+            {loading ? '...' : `Đang hiển thị ${sortedUsers.length}/${users.length} người dùng`}
           </div>
+        </div>
+
+        <div className="filter-bar filter-bar--flex">
+          <div className="filter-bar__search">
+            <span className="filter-bar__search-icon">
+              <IconSearch />
+            </span>
+            <input
+              className="input"
+              type="text"
+              placeholder="Tìm theo họ tên hoặc email..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="select"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="ALL">Tất cả vai trò</option>
+            <option value="teacher">Giảng viên</option>
+            <option value="admin">Quản trị viên</option>
+          </select>
+
+          <select
+            className="select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="name-asc">Họ tên A → Z</option>
+            <option value="name-desc">Họ tên Z → A</option>
+            <option value="email-asc">Email A → Z</option>
+            <option value="email-desc">Email Z → A</option>
+            <option value="newest">Mới nhất</option>
+            <option value="oldest">Cũ nhất</option>
+          </select>
+
+          <button className="btn btn-secondary" onClick={() => { setKeyword(''); setRoleFilter('ALL'); setSortBy('name-asc'); }}>
+            Xóa bộ lọc
+          </button>
         </div>
 
         {loading ? (
@@ -621,12 +704,12 @@ export default function UsersPage() {
               </tbody>
             </table>
 
-            {users.length > 0 ? (
+            {sortedUsers.length > 0 ? (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={users.length}
+                totalItems={sortedUsers.length}
                 pageStart={pageStart}
                 pageEnd={pageEnd}
                 itemName="người dùng"

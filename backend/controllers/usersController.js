@@ -131,17 +131,33 @@ exports.createUser = async (req, res) => {
     // Hash password
     const hashedPassword = await bcryptjs.hash(password, 10);
 
+    // Generate lecturer_code if role is teacher
+    let lecturerCode = null;
+    const finalRole = role || 'teacher';
+    if (finalRole === 'teacher') {
+      const [codeRows] = await db.query(
+        `SELECT lecturer_code FROM users
+         WHERE lecturer_code LIKE 'GV%'
+         ORDER BY CAST(SUBSTRING(lecturer_code, 3) AS UNSIGNED) DESC
+         LIMIT 1`
+      );
+      const lastCode = codeRows[0]?.lecturer_code || '';
+      const lastNumber = Number(lastCode.replace('GV', '')) || 0;
+      lecturerCode = `GV${String(lastNumber + 1).padStart(4, '0')}`;
+    }
+
     // Create user
     const [result] = await db.query(`
-      INSERT INTO users (full_name, email, password_hash, role, department_id, is_active)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO users (full_name, email, password_hash, role, department_id, is_active, lecturer_code)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [
       full_name,
       email,
       hashedPassword,
-      role || 'teacher',
+      finalRole,
       department_id || null,
-      is_active !== undefined ? is_active : 1
+      is_active !== undefined ? is_active : 1,
+      lecturerCode
     ]);
 
     const userId = result.insertId;
@@ -153,7 +169,8 @@ exports.createUser = async (req, res) => {
         id: userId,
         full_name,
         email,
-        role: role || 'teacher',
+        role: finalRole,
+        lecturer_code: lecturerCode,
         department_id: department_id || null,
         is_active: is_active !== undefined ? is_active : 1
       }

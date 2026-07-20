@@ -80,6 +80,87 @@ const ensureRecentSemesters = async (conn) => {
   return semesterRows;
 };
 
+const getCurrentOpenSemester = async (conn) => {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  let target = null;
+  if (month >= 9) {
+    target = { academicYear: `${year}-${year + 1}`, semesterNo: 1 };
+  } else if (month === 1) {
+    target = { academicYear: `${year - 1}-${year}`, semesterNo: 1 };
+  } else if (month >= 2 && month <= 6) {
+    target = { academicYear: `${year - 1}-${year}`, semesterNo: 2 };
+  } else if (month >= 7 && month <= 8) {
+    target = { academicYear: `${year - 1}-${year}`, semesterNo: 3 };
+  } else {
+    return null;
+  }
+
+  const [rows] = await conn.query(
+    `
+      SELECT id, academic_year, semester_no, semester_name, start_date, end_date
+      FROM semesters
+      WHERE academic_year = ? AND semester_no = ? AND is_closed = 0
+      LIMIT 1
+    `,
+    [target.academicYear, target.semesterNo]
+  );
+
+  if (rows.length > 0) {
+    return rows[0];
+  }
+
+  const monthText = String(month).padStart(2, '0');
+  const dayText = String(now.getDate()).padStart(2, '0');
+  const todayText = `${year}-${monthText}-${dayText}`;
+
+  const [fallbackRows] = await conn.query(
+    `
+      SELECT id, academic_year, semester_no, semester_name, start_date, end_date
+      FROM semesters
+      WHERE is_closed = 0
+        AND (start_date IS NULL OR start_date <= ?)
+        AND (end_date IS NULL OR end_date >= ?)
+      ORDER BY start_date DESC, academic_year DESC, semester_no DESC
+      LIMIT 1
+    `,
+    [todayText, todayText]
+  );
+
+  return fallbackRows[0] || null;
+};
+
+const getAcademicYearForDate = (now) => {
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  if (month >= 9) {
+    return `${year}-${year + 1}`;
+  }
+  return `${year - 1}-${year}`;
+};
+
+const getSemesterForImport = async (conn, selectedSemesterNo) => {
+  if (!selectedSemesterNo) {
+    return getCurrentOpenSemester(conn);
+  }
+
+  const now = new Date();
+  const academicYear = getAcademicYearForDate(now);
+  const [rows] = await conn.query(
+    `
+      SELECT id, academic_year, semester_no, semester_name, start_date, end_date, is_closed
+      FROM semesters
+      WHERE academic_year = ? AND semester_no = ? AND is_closed = 1
+      LIMIT 1
+    `,
+    [academicYear, selectedSemesterNo]
+  );
+
+  return rows[0] || null;
+};
+
 const normalizeHeader = (value) => String(value || '').trim();
 
 const parseExcelBuffer = (buffer) => {
@@ -137,6 +218,36 @@ const toBooleanFlag = (value) => {
   if (['1', 'true', 'yes', 'co', 'có', 'y'].includes(text)) return 1;
   if (['0', 'false', 'no', 'khong', 'không', 'n'].includes(text)) return 0;
   return Number(value) ? 1 : 0;
+};
+
+const parseSemesterInfo = (value, fallbackAcademicYear) => {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+
+  const lowered = text.toLowerCase();
+  let academicYear = fallbackAcademicYear || '';
+
+  const yearMatch = lowered.match(/(20\d{2})\s*[-/]\s*(20\d{2})/);
+  if (yearMatch) {
+    academicYear = `${yearMatch[1]}-${yearMatch[2]}`;
+  }
+
+  let semesterNo = null;
+  if (lowered.includes('hk1') || lowered.includes('hki') || lowered.includes('hoc ky 1') || lowered.includes('semester 1')) {
+    semesterNo = 1;
+  } else if (lowered.includes('hk2') || lowered.includes('hk ii') || lowered.includes('hoc ky 2') || lowered.includes('semester 2')) {
+    semesterNo = 2;
+  } else if (lowered.includes('hk3') || lowered.includes('hkhe') || lowered.includes('he') || lowered.includes('summer')) {
+    semesterNo = 3;
+  } else {
+    const numberMatch = lowered.match(/\b([123])\b/);
+    semesterNo = numberMatch ? Number(numberMatch[1]) : null;
+  }
+
+  if (!semesterNo) return null;
+
+  return { academicYear, semesterNo };
 };
 
 const normalizeGender = (value) => {
@@ -213,15 +324,50 @@ const getAllStudents = async (req, res) => {
         COALESCE(s.department_id, c.department_id) AS department_id,
         COALESCE(s.class_id, c.id) AS class_id,
         d.department_name,
-        c.class_name,
+        c.class_code, c.class_name,
         c.homeroom_teacher_id,
         u.full_name AS homeroom_teacher_name,
         s.created_at,
-        s.updated_at
+        s.updated_at,
+        COALESCE(cw.consecutive_warning_count, 0) AS consecutive_warning_count
       FROM students s
       LEFT JOIN departments d ON s.department_id = d.id
       LEFT JOIN classes c ON s.class_id = c.id
       LEFT JOIN users u ON c.homeroom_teacher_id = u.id
+      LEFT JOIN (
+        SELECT r1.student_id,
+          COUNT(*) AS consecutive_warning_count
+        FROM (
+          SELECT sar.student_id, sar.risk_level,
+            ROW_NUMBER() OVER (PARTITION BY sar.student_id ORDER BY sem.academic_year DESC, sem.semester_no DESC) AS rn
+          FROM student_academic_records sar
+          JOIN semesters sem ON sar.semester_id = sem.id
+        ) r1
+        WHERE r1.risk_level IN ('Warning', 'Danger')
+          AND r1.rn <= (
+            SELECT MIN(r2.rn) - 1
+            FROM (
+              SELECT sar2.student_id, sar2.risk_level,
+                ROW_NUMBER() OVER (PARTITION BY sar2.student_id ORDER BY sem2.academic_year DESC, sem2.semester_no DESC) AS rn
+              FROM student_academic_records sar2
+              JOIN semesters sem2 ON sar2.semester_id = sem2.id
+            ) r2
+            WHERE r2.student_id = r1.student_id AND r2.risk_level = 'Safe'
+          )
+          OR (
+            r1.risk_level IN ('Warning', 'Danger')
+            AND NOT EXISTS (
+              SELECT 1 FROM (
+                SELECT sar3.student_id, sar3.risk_level,
+                  ROW_NUMBER() OVER (PARTITION BY sar3.student_id ORDER BY sem3.academic_year DESC, sem3.semester_no DESC) AS rn
+                FROM student_academic_records sar3
+                JOIN semesters sem3 ON sar3.semester_id = sem3.id
+              ) r3
+              WHERE r3.student_id = r1.student_id AND r3.risk_level = 'Safe'
+            )
+          )
+        GROUP BY r1.student_id
+      ) cw ON cw.student_id = s.id
       ${whereClause}
       ORDER BY s.id ASC
     `, teacherClassIds);
@@ -260,7 +406,7 @@ const getStudentById = async (req, res) => {
         s.enrollment_year,
         s.note,
         d.department_name,
-        c.class_name,
+        c.class_code, c.class_name,
         c.homeroom_teacher_id,
         u.full_name AS homeroom_teacher_name,
         s.created_at,
@@ -324,7 +470,7 @@ const getStudentHistory = async (req, res) => {
         s.created_at,
         s.updated_at,
         d.department_name,
-        c.class_name,
+        c.class_code, c.class_name,
         c.homeroom_teacher_id,
         u.full_name AS homeroom_teacher_name
       FROM students s
@@ -422,7 +568,20 @@ const createStudent = async (req, res) => {
       return res.status(409).json({ message: 'Mã sinh viên đã tồn tại' });
     }
 
+    const selectedSemesterNo = req.body.semester_no ? Number(req.body.semester_no) : null;
+    if (selectedSemesterNo && ![1, 2, 3].includes(selectedSemesterNo)) {
+      return res.status(400).json({ message: 'Học kỳ import không hợp lệ.' });
+    }
+
     conn = await db.getConnection();
+    const currentSemester = await getSemesterForImport(conn, selectedSemesterNo);
+    if (!currentSemester) {
+      return res.status(400).json({
+        message: selectedSemesterNo
+          ? 'Không tìm thấy học kỳ đang mở cho lựa chọn import.'
+          : 'Không tìm thấy học kỳ đang mở theo thời gian hiện tại.'
+      });
+    }
     await conn.beginTransaction();
 
     const safeGpa = Number(gpa ?? 0);
@@ -652,6 +811,188 @@ const previewImportStudents = async (req, res) => {
   }
 };
 
+const importStudentInfo = async (req, res) => {
+  let conn;
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Vui lòng chọn file Excel' });
+    }
+
+    const mapping = req.body.mapping ? JSON.parse(req.body.mapping) : {};
+
+    if (!mapping.student_code || !mapping.full_name) {
+      return res.status(400).json({ message: 'Thiếu mapping cho student_code và full_name' });
+    }
+    if (!mapping.class_code && !mapping.class_name) {
+      return res.status(400).json({ message: 'Thiếu mapping cho class_code hoặc class_name' });
+    }
+
+    const rows = parseExcelBuffer(req.file.buffer);
+    if (rows.length < 2) {
+      return res.status(400).json({ message: 'File Excel không có dữ liệu' });
+    }
+
+    const headers = rows[0].map(normalizeHeader);
+    const headerIndex = buildHeaderIndex(headers);
+
+    const getValueByHeader = (row, header) => {
+      if (!header) return '';
+      const idx = headerIndex.get(header);
+      return idx === undefined ? '' : row[idx];
+    };
+
+    const [classRows] = await db.query(`SELECT id, class_code, class_name, department_id FROM classes`);
+    const classByCode = new Map();
+    const classByName = new Map();
+    classRows.forEach((cls) => {
+      if (cls.class_code) classByCode.set(String(cls.class_code).trim().toLowerCase(), cls);
+      if (cls.class_name) classByName.set(String(cls.class_name).trim().toLowerCase(), cls);
+    });
+
+    const studentCodes = rows
+      .slice(1)
+      .map((row) => String(getValueByHeader(row, mapping.student_code)).trim())
+      .filter(Boolean);
+    const uniqueCodes = Array.from(new Set(studentCodes));
+    const existingMap = new Map();
+
+    if (uniqueCodes.length > 0) {
+      const placeholders = uniqueCodes.map(() => '?').join(',');
+      const [existing] = await db.query(
+        `SELECT id, student_code FROM students WHERE student_code IN (${placeholders})`,
+        uniqueCodes
+      );
+      existing.forEach((row) => existingMap.set(row.student_code, row.id));
+    }
+
+    conn = await db.getConnection();
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    const errors = [];
+
+    const hasText = (value) => {
+      if (value === null || value === undefined) return false;
+      return String(value).trim() !== '';
+    };
+
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex];
+      const studentCode = String(getValueByHeader(row, mapping.student_code)).trim();
+      const fullName = String(getValueByHeader(row, mapping.full_name)).trim();
+      const classCodeRaw = mapping.class_code ? String(getValueByHeader(row, mapping.class_code)).trim() : '';
+      const classNameRaw = mapping.class_name ? String(getValueByHeader(row, mapping.class_name)).trim() : '';
+
+      if (!studentCode && !fullName && !classCodeRaw && !classNameRaw) continue;
+
+      if (!studentCode || !fullName) {
+        errors.push({ row: rowIndex + 1, message: 'Thiếu student_code hoặc full_name' });
+        continue;
+      }
+
+      const classKey = classCodeRaw.toLowerCase();
+      const classNameKey = classNameRaw.toLowerCase();
+      const classInfo = classKey ? classByCode.get(classKey) : classByName.get(classNameKey);
+
+      if (!classInfo) {
+        errors.push({ row: rowIndex + 1, message: `Không tìm thấy lớp: ${classCodeRaw || classNameRaw}` });
+        continue;
+      }
+
+      const rawGender = getValueByHeader(row, mapping.gender);
+      const gender = normalizeGender(rawGender);
+      const rawDateOfBirth = getValueByHeader(row, mapping.date_of_birth);
+      const rawEmail = getValueByHeader(row, mapping.email);
+      const rawPhone = getValueByHeader(row, mapping.phone);
+      const rawAddress = getValueByHeader(row, mapping.address);
+      const rawEnrollmentYear = getValueByHeader(row, mapping.enrollment_year);
+      const rawNote = getValueByHeader(row, mapping.note);
+
+      const existingId = existingMap.get(studentCode);
+
+      if (existingId) {
+        const updateFields = ['full_name = ?', 'department_id = ?', 'class_id = ?'];
+        const updateValues = [fullName, classInfo.department_id, classInfo.id];
+
+        if (mapping.date_of_birth && hasText(rawDateOfBirth)) {
+          updateFields.push('date_of_birth = ?');
+          updateValues.push(parseExcelDate(rawDateOfBirth));
+        }
+        if (mapping.gender && hasText(rawGender) && gender) {
+          updateFields.push('gender = ?');
+          updateValues.push(gender);
+        }
+        if (mapping.email && hasText(rawEmail)) {
+          updateFields.push('email = ?');
+          updateValues.push(String(rawEmail).trim());
+        }
+        if (mapping.phone && hasText(rawPhone)) {
+          updateFields.push('phone = ?');
+          updateValues.push(String(rawPhone).trim());
+        }
+        if (mapping.address && hasText(rawAddress)) {
+          updateFields.push('address = ?');
+          updateValues.push(String(rawAddress).trim());
+        }
+        if (mapping.enrollment_year && hasText(rawEnrollmentYear)) {
+          updateFields.push('enrollment_year = ?');
+          updateValues.push(toNumber(rawEnrollmentYear, null));
+        }
+        if (mapping.note && hasText(rawNote)) {
+          updateFields.push('note = ?');
+          updateValues.push(String(rawNote).trim());
+        }
+
+        await conn.query(
+          `UPDATE students SET ${updateFields.join(', ')} WHERE id = ?`,
+          [...updateValues, existingId]
+        );
+        updatedCount += 1;
+      } else {
+        try {
+          await conn.query(
+            `INSERT INTO students (
+              student_code, full_name, date_of_birth, gender, email, phone, address,
+              department_id, class_id, gpa, absences, tuition_debt, scholarship,
+              risk_percentage, risk_level, actual_status, enrollment_year, note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              studentCode,
+              fullName,
+              parseExcelDate(rawDateOfBirth) || '2000-01-01',
+              gender || 'Other',
+              String(rawEmail || '').trim() || null,
+              String(rawPhone || '').trim() || null,
+              String(rawAddress || '').trim() || null,
+              classInfo.department_id,
+              classInfo.id,
+              0, 0, 0, 0, 0, 'Safe', 'Enrolled',
+              toNumber(rawEnrollmentYear, null),
+              String(rawNote || '').trim() || null
+            ]
+          );
+          createdCount += 1;
+        } catch (err) {
+          errors.push({ row: rowIndex + 1, message: err?.message || 'Lỗi khi thêm sinh viên' });
+        }
+      }
+    }
+
+    res.json({
+      message: 'Import thông tin sinh viên hoàn tất',
+      createdCount,
+      updatedCount,
+      failedCount: errors.length,
+      errors
+    });
+  } catch (error) {
+    console.error('importStudentInfo error:', error);
+    res.status(500).json({ message: 'Lỗi server khi import thông tin sinh viên' });
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
 const importStudents = async (req, res) => {
   let conn;
   try {
@@ -660,12 +1001,13 @@ const importStudents = async (req, res) => {
     }
 
     const mapping = req.body.mapping ? JSON.parse(req.body.mapping) : {};
-    const requiredFields = ['student_code', 'full_name'];
+
+    const requiredFields = ['semester_no', 'academic_year', 'student_code', 'full_name'];
     const hasClassMapping = Boolean(mapping.class_code || mapping.class_name);
 
     if (!requiredFields.every((field) => mapping[field]) || !hasClassMapping) {
       return res.status(400).json({
-        message: 'Thiếu mapping cho student_code, full_name và class_code/class_name'
+        message: 'Thiếu mapping cho semester_no, academic_year, student_code, full_name và class_code/class_name'
       });
     }
 
@@ -693,6 +1035,31 @@ const importStudents = async (req, res) => {
       if (cls.class_name) classByName.set(String(cls.class_name).trim().toLowerCase(), cls);
     });
 
+    const firstDataRow = rows[1];
+    const rawSemesterNo = String(getValueByHeader(firstDataRow, mapping.semester_no)).trim();
+    const rawAcademicYear = String(getValueByHeader(firstDataRow, mapping.academic_year)).trim();
+
+    if (!rawSemesterNo || !rawAcademicYear) {
+      return res.status(400).json({ message: 'Dòng đầu tiên thiếu thông tin Học kỳ hoặc Năm học' });
+    }
+
+    const semesterNo = Number(rawSemesterNo);
+    if (![1, 2, 3].includes(semesterNo)) {
+      return res.status(400).json({ message: 'Học kỳ không hợp lệ (chỉ chấp nhận 1, 2 hoặc 3)' });
+    }
+
+    const [semesterCheckRows] = await db.query(
+      `SELECT id, academic_year, semester_no, semester_name, is_closed FROM semesters WHERE academic_year = ? AND semester_no = ?`,
+      [rawAcademicYear, semesterNo]
+    );
+    if (semesterCheckRows.length === 0) {
+      return res.status(400).json({ message: `Học kỳ ${semesterNo} năm ${rawAcademicYear} không tồn tại trong quản lý học kỳ` });
+    }
+    const selectedSemester = semesterCheckRows[0];
+    if (!selectedSemester.is_closed) {
+      return res.status(400).json({ message: `Học kỳ ${semesterNo} năm ${rawAcademicYear} chưa kết thúc - chỉ được import vào học kỳ đã kết thúc` });
+    }
+
     const studentCodes = rows
       .slice(1)
       .map((row) => String(getValueByHeader(row, mapping.student_code || '')).trim())
@@ -710,11 +1077,17 @@ const importStudents = async (req, res) => {
     }
 
     conn = await db.getConnection();
-    const semesters = await ensureRecentSemesters(conn);
 
     let createdCount = 0;
     let updatedCount = 0;
     const errors = [];
+
+    const hasText = (value) => {
+      if (value === null || value === undefined) return false;
+      return String(value).trim() !== '';
+    };
+
+    const hasValue = (value) => value !== '' && value !== null && value !== undefined;
 
     for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
       const row = rows[rowIndex];
@@ -741,81 +1114,207 @@ const importStudents = async (req, res) => {
         continue;
       }
 
-      const gender = normalizeGender(getValueByHeader(row, mapping.gender));
-      const riskPercentage = toNumber(getValueByHeader(row, mapping.risk_percentage), 0);
-      const riskLevel = normalizeRiskLevel(getValueByHeader(row, mapping.risk_level), riskPercentage);
+      const rowSemester = selectedSemester;
+
+      const rawGender = getValueByHeader(row, mapping.gender);
+      const gender = normalizeGender(rawGender);
+      const rawDateOfBirth = getValueByHeader(row, mapping.date_of_birth);
+      const rawEmail = getValueByHeader(row, mapping.email);
+      const rawPhone = getValueByHeader(row, mapping.phone);
+      const rawAddress = getValueByHeader(row, mapping.address);
+      const rawGpa = getValueByHeader(row, mapping.gpa);
+      const rawAbsences = getValueByHeader(row, mapping.absences);
+      const rawTuitionDebt = getValueByHeader(row, mapping.tuition_debt);
+      const rawScholarship = getValueByHeader(row, mapping.scholarship);
+      const rawStatus = getValueByHeader(row, mapping.actual_status);
+      const rawEnrollmentYear = getValueByHeader(row, mapping.enrollment_year);
+      const rawNote = getValueByHeader(row, mapping.note);
+      // risk_percentage & risk_level không import từ Excel — AI sẽ tự tính
 
       const payload = {
         student_code: studentCode,
         full_name: fullName,
-        date_of_birth: parseExcelDate(getValueByHeader(row, mapping.date_of_birth)),
+        date_of_birth: parseExcelDate(rawDateOfBirth),
         gender: gender || 'Other',
-        email: String(getValueByHeader(row, mapping.email) || '').trim() || null,
-        phone: String(getValueByHeader(row, mapping.phone) || '').trim() || null,
-        address: String(getValueByHeader(row, mapping.address) || '').trim() || null,
+        email: String(rawEmail || '').trim() || null,
+        phone: String(rawPhone || '').trim() || null,
+        address: String(rawAddress || '').trim() || null,
         department_id: classInfo.department_id,
         class_id: classInfo.id,
-        gpa: toNumber(getValueByHeader(row, mapping.gpa), 0),
-        absences: toNumber(getValueByHeader(row, mapping.absences), 0),
-        tuition_debt: toBooleanFlag(getValueByHeader(row, mapping.tuition_debt)),
-        scholarship: toBooleanFlag(getValueByHeader(row, mapping.scholarship)),
-        risk_percentage: riskPercentage,
-        risk_level: riskLevel,
-        actual_status: normalizeStatus(getValueByHeader(row, mapping.actual_status)),
-        enrollment_year: toNumber(getValueByHeader(row, mapping.enrollment_year), null),
-        note: String(getValueByHeader(row, mapping.note) || '').trim() || null
+        gpa: toNumber(rawGpa, 0),
+        absences: toNumber(rawAbsences, 0),
+        tuition_debt: toBooleanFlag(rawTuitionDebt),
+        scholarship: toBooleanFlag(rawScholarship),
+        risk_percentage: 0,
+        risk_level: 'Safe',
+        actual_status: normalizeStatus(rawStatus),
+        enrollment_year: toNumber(rawEnrollmentYear, null),
+        note: String(rawNote || '').trim() || null
       };
 
       const existingId = existingMap.get(studentCode);
 
       if (existingId) {
+        const updateFields = [
+          'full_name = ?',
+          'department_id = ?',
+          'class_id = ?'
+        ];
+        const updateValues = [payload.full_name, payload.department_id, payload.class_id];
+
+        if (mapping.date_of_birth && hasText(rawDateOfBirth)) {
+          updateFields.push('date_of_birth = ?');
+          updateValues.push(parseExcelDate(rawDateOfBirth));
+        }
+
+        if (mapping.gender && hasText(rawGender) && gender) {
+          updateFields.push('gender = ?');
+          updateValues.push(gender);
+        }
+
+        if (mapping.email && hasText(rawEmail)) {
+          updateFields.push('email = ?');
+          updateValues.push(String(rawEmail).trim());
+        }
+
+        if (mapping.phone && hasText(rawPhone)) {
+          updateFields.push('phone = ?');
+          updateValues.push(String(rawPhone).trim());
+        }
+
+        if (mapping.address && hasText(rawAddress)) {
+          updateFields.push('address = ?');
+          updateValues.push(String(rawAddress).trim());
+        }
+
+        if (mapping.gpa && hasValue(rawGpa)) {
+          updateFields.push('gpa = ?');
+          updateValues.push(toNumber(rawGpa, 0));
+        }
+
+        if (mapping.absences && hasValue(rawAbsences)) {
+          updateFields.push('absences = ?');
+          updateValues.push(toNumber(rawAbsences, 0));
+        }
+
+        if (mapping.tuition_debt && hasValue(rawTuitionDebt)) {
+          updateFields.push('tuition_debt = ?');
+          updateValues.push(toBooleanFlag(rawTuitionDebt));
+        }
+
+        if (mapping.scholarship && hasValue(rawScholarship)) {
+          updateFields.push('scholarship = ?');
+          updateValues.push(toBooleanFlag(rawScholarship));
+        }
+
+        if (mapping.actual_status && hasText(rawStatus)) {
+          updateFields.push('actual_status = ?');
+          updateValues.push(normalizeStatus(rawStatus));
+        }
+
+        if (mapping.enrollment_year && hasValue(rawEnrollmentYear)) {
+          updateFields.push('enrollment_year = ?');
+          updateValues.push(toNumber(rawEnrollmentYear, null));
+        }
+
+        if (mapping.note && hasText(rawNote)) {
+          updateFields.push('note = ?');
+          updateValues.push(String(rawNote).trim());
+        }
+
         await conn.query(
           `
             UPDATE students
-            SET
-              full_name = ?,
-              date_of_birth = ?,
-              gender = ?,
-              email = ?,
-              phone = ?,
-              address = ?,
-              department_id = ?,
-              class_id = ?,
-              gpa = ?,
-              absences = ?,
-              tuition_debt = ?,
-              scholarship = ?,
-              risk_percentage = ?,
-              risk_level = ?,
-              actual_status = ?,
-              enrollment_year = ?,
-              note = ?
+            SET ${updateFields.join(', ')}
             WHERE id = ?
           `,
-          [
-            payload.full_name,
-            payload.date_of_birth,
-            payload.gender,
-            payload.email,
-            payload.phone,
-            payload.address,
-            payload.department_id,
-            payload.class_id,
-            payload.gpa,
-            payload.absences,
-            payload.tuition_debt,
-            payload.scholarship,
-            payload.risk_percentage,
-            payload.risk_level,
-            payload.actual_status,
-            payload.enrollment_year,
-            payload.note,
-            existingId
-          ]
+          [...updateValues, existingId]
         );
         updatedCount += 1;
+
+        const hasAcademicInput =
+          (mapping.gpa && hasValue(rawGpa)) ||
+          (mapping.absences && hasValue(rawAbsences)) ||
+          (mapping.tuition_debt && hasValue(rawTuitionDebt)) ||
+          (mapping.scholarship && hasValue(rawScholarship)) ||
+          (mapping.actual_status && hasText(rawStatus)) ||
+          (mapping.note && hasText(rawNote));
+
+        if (hasAcademicInput) {
+          const [recordRows] = await conn.query(
+            `SELECT id FROM student_academic_records WHERE student_id = ? AND semester_id = ?`,
+            [existingId, rowSemester.id]
+          );
+
+          if (recordRows.length > 0) {
+            const recordUpdateFields = [];
+            const recordUpdateValues = [];
+
+            if (mapping.gpa && hasValue(rawGpa)) {
+              recordUpdateFields.push('gpa = ?');
+              recordUpdateValues.push(toNumber(rawGpa, 0));
+            }
+
+            if (mapping.absences && hasValue(rawAbsences)) {
+              recordUpdateFields.push('absences = ?');
+              recordUpdateValues.push(toNumber(rawAbsences, 0));
+            }
+
+            if (mapping.tuition_debt && hasValue(rawTuitionDebt)) {
+              recordUpdateFields.push('tuition_debt = ?');
+              recordUpdateValues.push(toBooleanFlag(rawTuitionDebt));
+            }
+
+            if (mapping.scholarship && hasValue(rawScholarship)) {
+              recordUpdateFields.push('scholarship = ?');
+              recordUpdateValues.push(toBooleanFlag(rawScholarship));
+            }
+
+            if (mapping.actual_status && hasText(rawStatus)) {
+              recordUpdateFields.push('actual_dropout_status = ?');
+              recordUpdateValues.push(normalizeStatus(rawStatus));
+            }
+
+            if (mapping.note && hasText(rawNote)) {
+              recordUpdateFields.push('notes = ?');
+              recordUpdateValues.push(String(rawNote).trim());
+            }
+
+            if (recordUpdateFields.length > 0) {
+              await conn.query(
+                `UPDATE student_academic_records SET ${recordUpdateFields.join(', ')} WHERE id = ?`,
+                [...recordUpdateValues, recordRows[0].id]
+              );
+            }
+          } else {
+            await conn.query(
+              `
+                INSERT INTO student_academic_records (
+                  student_id, semester_id, gpa, absences, tuition_debt, scholarship,
+                  failed_subjects, credits_enrolled, credits_passed, warning_level,
+                  risk_percentage, risk_level, actual_dropout_status, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `,
+              [
+                existingId,
+                rowSemester.id,
+                mapping.gpa && hasValue(rawGpa) ? toNumber(rawGpa, 0) : 0,
+                mapping.absences && hasValue(rawAbsences) ? toNumber(rawAbsences, 0) : 0,
+                mapping.tuition_debt && hasValue(rawTuitionDebt) ? toBooleanFlag(rawTuitionDebt) : 0,
+                mapping.scholarship && hasValue(rawScholarship) ? toBooleanFlag(rawScholarship) : 0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                'Safe',
+                mapping.actual_status && hasText(rawStatus) ? normalizeStatus(rawStatus) : 'Enrolled',
+                mapping.note && hasText(rawNote) ? String(rawNote).trim() : null
+              ]
+            );
+          }
+        }
       } else {
-        await conn.beginTransaction();
         try {
           const [result] = await conn.query(
             `
@@ -847,49 +1346,45 @@ const importStudents = async (req, res) => {
             ]
           );
 
+          createdCount += 1;
+
           const studentId = result.insertId;
-          if (semesters.length > 0) {
-            const recordValues = semesters.map((semester, idx) => {
-              const isCurrentSemester = idx === semesters.length - 1;
-              const seedGpa = isCurrentSemester ? payload.gpa : Math.max(1, Number((payload.gpa - 0.2).toFixed(2)));
-              const seedRisk = isCurrentSemester
-                ? payload.risk_percentage
-                : Math.min(99, Number((payload.risk_percentage + 3).toFixed(2)));
+          const hasAcademicInput =
+            (mapping.gpa && hasValue(rawGpa)) ||
+            (mapping.absences && hasValue(rawAbsences)) ||
+            (mapping.tuition_debt && hasValue(rawTuitionDebt)) ||
+            (mapping.scholarship && hasValue(rawScholarship)) ||
+            (mapping.actual_status && hasText(rawStatus)) ||
+            (mapping.note && hasText(rawNote));
 
-              return [
-                studentId,
-                semester.id,
-                seedGpa,
-                payload.absences,
-                payload.tuition_debt,
-                payload.scholarship,
-                0,
-                20,
-                18,
-                0,
-                seedRisk,
-                payload.risk_level,
-                payload.actual_status,
-                `Auto seed when importing student - ${semester.academic_year} HK${semester.semester_no}`
-              ];
-            });
-
+          if (hasAcademicInput) {
             await conn.query(
               `
                 INSERT INTO student_academic_records (
                   student_id, semester_id, gpa, absences, tuition_debt, scholarship,
                   failed_subjects, credits_enrolled, credits_passed, warning_level,
                   risk_percentage, risk_level, actual_dropout_status, notes
-                ) VALUES ?
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               `,
-              [recordValues]
+              [
+                studentId,
+                rowSemester.id,
+                mapping.gpa && hasValue(rawGpa) ? toNumber(rawGpa, 0) : 0,
+                mapping.absences && hasValue(rawAbsences) ? toNumber(rawAbsences, 0) : 0,
+                mapping.tuition_debt && hasValue(rawTuitionDebt) ? toBooleanFlag(rawTuitionDebt) : 0,
+                mapping.scholarship && hasValue(rawScholarship) ? toBooleanFlag(rawScholarship) : 0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                'Safe',
+                mapping.actual_status && hasText(rawStatus) ? normalizeStatus(rawStatus) : 'Enrolled',
+                mapping.note && hasText(rawNote) ? String(rawNote).trim() : null
+              ]
             );
           }
-
-          await conn.commit();
-          createdCount += 1;
         } catch (err) {
-          await conn.rollback();
           errors.push({ row: rowIndex + 1, message: err?.message || 'Lỗi khi thêm sinh viên' });
         }
       }
@@ -897,6 +1392,12 @@ const importStudents = async (req, res) => {
 
     res.json({
       message: 'Import Excel hoàn tất',
+      selectedSemester: {
+        id: selectedSemester.id,
+        academic_year: selectedSemester.academic_year,
+        semester_no: selectedSemester.semester_no,
+        semester_name: selectedSemester.semester_name
+      },
       createdCount,
       updatedCount,
       failedCount: errors.length,
@@ -920,5 +1421,6 @@ module.exports = {
   updateStudent,
   deleteStudent,
   previewImportStudents,
-  importStudents
+  importStudents,
+  importStudentInfo
 };

@@ -330,8 +330,123 @@ exports.predictByStudentId = async (req, res) => {
       error: error.message
     });
   }
-  
+
 };
+
+exports.batchPredictAll = async (req, res) => {
+  try {
+    // 1. Lấy tất cả sinh viên có academic record mới nhất
+    const [students] = await db.query(`
+      SELECT
+        s.id, s.student_code, s.full_name, s.gender, s.age_at_enrollment,
+        sar.id AS record_id,
+        sar.gpa, sar.tuition_debt, sar.scholarship,
+        sar.failed_subjects, sar.credits_enrolled, sar.credits_passed,
+        sar.warning_level
+      FROM students s
+      INNER JOIN student_academic_records sar ON sar.student_id = s.id
+      INNER JOIN (
+        SELECT student_id, MAX(sar2.id) AS max_record_id
+        FROM student_academic_records sar2
+        JOIN semesters sem2 ON sar2.semester_id = sem2.id
+        GROUP BY student_id
+      ) latest ON latest.student_id = s.id AND latest.max_record_id = sar.id
+    `);
+
+    if (students.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Không có sinh viên nào có bản ghi học tập để dự đoán',
+        totalProcessed: 0,
+        totalSuccess: 0,
+        totalFailed: 0
+      });
+    }
+
+    let totalSuccess = 0;
+    let totalFailed = 0;
+    const errors = [];
+
+    for (const student of students) {
+      try {
+        const payload = {
+          gender: normalizeGender(student.gender),
+          age_at_enrollment: Number(student.age_at_enrollment || 18),
+          gpa: Number(student.gpa || 0),
+          tuition_debt: Number(student.tuition_debt || 0),
+          scholarship: Number(student.scholarship || 0),
+          failed_subjects: Number(student.failed_subjects || 0),
+          credits_enrolled: Number(student.credits_enrolled || 0),
+          credits_passed: Number(student.credits_passed || 0),
+          warning_level: Number(student.warning_level || 0)
+        };
+
+        const predictionResult = await runPythonPrediction(payload);
+
+        // Cập nhật snapshot sinh viên
+        await db.query(`
+          UPDATE students
+          SET
+            gpa = ?,
+            tuition_debt = ?,
+            scholarship = ?,
+            risk_percentage = ?,
+            risk_level = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `, [
+          payload.gpa,
+          payload.tuition_debt,
+          payload.scholarship,
+          predictionResult.dropout_probability * 100,
+          predictionResult.risk_level,
+          student.id
+        ]);
+
+        // Cập nhật academic record
+        await db.query(`
+          UPDATE student_academic_records
+          SET
+            risk_percentage = ?,
+            risk_level = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `, [
+          predictionResult.dropout_probability * 100,
+          predictionResult.risk_level,
+          student.record_id
+        ]);
+
+        totalSuccess += 1;
+      } catch (err) {
+        totalFailed += 1;
+        errors.push({
+          student_id: student.id,
+          student_code: student.student_code,
+          error: err?.message || 'Unknown error'
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Batch Prediction hoàn tất: ${totalSuccess}/${students.length} thành công`,
+      totalProcessed: students.length,
+      totalSuccess,
+      totalFailed,
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined
+    });
+
+  } catch (error) {
+    console.error('batchPredictAll error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi chạy Batch Prediction',
+      error: error.message
+    });
+  }
+};
+
 exports.retrainModel = async (req, res) => {
   try {
     const requestedByUserId = req.user?.id || null;
@@ -360,11 +475,11 @@ exports.retrainModel = async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, NOW(), ?)
     `, [
       requestedByUserId,
-      'kaggle',
+      'kaggle+database',
       'LogisticRegression',
       'running',
       oldModelVersionId,
-      'Bắt đầu retrain mô hình'
+      'Bắt đầu retrain mô hình (Kaggle + Dữ liệu thực từ Database)'
     ]);
 
     const retrainJobId = jobResult.insertId;
@@ -406,8 +521,24 @@ exports.retrainModel = async (req, res) => {
           });
         }
 
-        const retrainResult = JSON.parse(result);
-
+        // Cắt bỏ các log info, chỉ lấy đoạn JSON ở cuối (sau dòng COMPLETED)
+        const jsonMatch = result.match(/===== RETRAIN MODEL - COMPLETED =====\s*([\s\S]+)/);
+        let retrainResult;
+        try {
+          if (jsonMatch) {
+            retrainResult = JSON.parse(jsonMatch[1]);
+          } else {
+            // Fallback: tìm đoạn JSON cuối cùng
+            const lastBrace = result.lastIndexOf('{');
+            if (lastBrace !== -1) {
+              retrainResult = JSON.parse(result.substring(lastBrace));
+            } else {
+              throw new Error('Không tìm thấy JSON');
+            }
+          }
+        } catch (e) {
+          throw new Error('Lỗi xử lý kết quả retrain: ' + e.message + '\\nOutput: ' + result);
+        }
         // 4. Hạ model production cũ
         await db.query(`
           UPDATE ml_model_versions
@@ -526,8 +657,8 @@ exports.getCurrentModel = async (req, res) => {
     }
 
     const model = currentModels[0];
-    const metricsJson = typeof model.metrics_json === 'string' 
-      ? JSON.parse(model.metrics_json) 
+    const metricsJson = typeof model.metrics_json === 'string'
+      ? JSON.parse(model.metrics_json)
       : model.metrics_json;
 
     // 2. Đọc metadata từ file (để lấy tên feature)
@@ -537,7 +668,7 @@ exports.getCurrentModel = async (req, res) => {
       const fs = require('fs');
       const aiCorePath = path.join(__dirname, '..', '..', 'ai_core');
       const metadataPath = path.join(aiCorePath, 'artifacts', 'best_model_metadata.json');
-      
+
       if (fs.existsSync(metadataPath)) {
         const metadataContent = fs.readFileSync(metadataPath, 'utf-8');
         const metadata = JSON.parse(metadataContent);

@@ -713,6 +713,14 @@ input, select, textarea { font-family: inherit; }
 .table tbody tr { transition: background 0.1s ease; }
 .table tbody tr:hover td { background: var(--gray-50); }
 
+.action-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
 .table-pagination {
   padding: 12px 20px;
   display: flex;
@@ -4036,6 +4044,13 @@ input, select, textarea { font-family: inherit; }
   color: #3b82f6;
   text-decoration: none;
   font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.login-forgot:hover {
+  text-decoration: underline;
 }
 
 .login-button {
@@ -4103,4 +4118,273 @@ input, select, textarea { font-family: inherit; }
     font-size: 22px;
     margin-bottom: 20px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT STYLES — Báo cáo sinh viên (A4)
+═══════════════════════════════════════════════════════════ */
+@media print {
+  /* Ẩn các thành phần không cần in */
+  .sidebar,
+  .topbar,
+  .page-header__actions,
+  .action-bar,
+  .no-print,
+  .filter-bar,
+  .table-wrapper__header,
+  .table-pagination {
+    display: none !important;
+  }
+
+  /* Reset layout */
+  body {
+    background: white !important;
+    color: #000 !important;
+    font-size: 12px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  .page-wrapper {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .page-title {
+    font-size: 20px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .page-subtitle {
+    font-size: 11px !important;
+  }
+
+  /* Cards */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .stat-card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+  }
+
+  .stat-card:hover {
+    transform: none !important;
+  }
+
+  /* Stats grid */
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* Table */
+  .table-wrapper {
+    box-shadow: none !important;
+    border: 1px solid #999 !important;
+    overflow: visible !important;
+  }
+
+  .table {
+    min-width: auto !important;
+    font-size: 10px !important;
+  }
+
+  .table th {
+    background: #e2e8f0 !important;
+    padding: 6px 8px !important;
+    font-size: 9px !important;
+  }
+
+  .table td {
+    padding: 5px 8px !important;
+    font-size: 10px !important;
+  }
+
+  /* Charts — render at reduced height */
+  .chart-card__body {
+    height: 220px !important;
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Badges */
+  .badge {
+    border: 1px solid #999 !important;
+  }
+
+  /* Page breaks */
+  .detail-shell {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Print header branding */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #333;
+  }
+
+  .print-header__title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #000;
+  }
+
+  .print-header__subtitle {
+    font-size: 11px;
+    color: #555;
+    margin-top: 4px;
+  }
+
+  .print-header__date {
+    font-size: 10px;
+    color: #888;
+    margin-top: 2px;
+  }
+}
+
+/* Hidden by default, shown only in print */
+.print-header {
+  display: none;
+}
+
+/* ── Consecutive Warning Highlight ─────────────────────────── */
+.row-consecutive-warning {
+  background: linear-gradient(90deg, #fef2f2 0%, #fff5f5 100%) !important;
+  border-left: 4px solid #ef4444 !important;
+  position: relative;
+}
+
+.row-consecutive-warning td:first-child {
+  padding-left: 12px;
+}
+
+.consecutive-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.alert-consecutive {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border: 1px solid #fca5a5;
+  border-left: 5px solid #ef4444;
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.alert-consecutive svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  stroke: #ef4444;
+}
+
+.alert-consecutive__text {
+  flex: 1;
+}
+
+.alert-consecutive__count {
+  font-size: 20px;
+  font-weight: 800;
+  color: #dc2626;
+}
+
+/* ── Import Type Selection ─────────────────────────────────── */
+.import-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.import-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 16px;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--gray-50);
+  text-align: center;
+}
+
+.import-type-card:hover {
+  border-color: var(--blue-400);
+  background: var(--blue-50);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.import-type-card.active {
+  border-color: var(--blue-600);
+  background: var(--blue-50);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.import-type-card svg {
+  width: 36px;
+  height: 36px;
+  stroke: var(--blue-600);
+}
+
+.import-type-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.import-type-card__desc {
+  font-size: 12px;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+
+/* ── Record row highlight for detail page ──────────────────── */
+.record-row-warning {
+  background: #fef2f2 !important;
+}
+
+.record-row-warning td {
+  color: #b91c1c !important;
+  font-weight: 600;
 }

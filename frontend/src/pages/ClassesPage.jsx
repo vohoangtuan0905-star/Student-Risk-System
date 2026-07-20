@@ -2,6 +2,7 @@ import Pagination from "../components/Pagination";
 import { useMemo, useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
+import * as XLSX from 'xlsx';
 
 const IconUsers = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,6 +54,13 @@ const IconX = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const IconSearch = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
@@ -248,6 +256,216 @@ function ConfirmDeleteModal({ isOpen, className, onConfirm, onCancel, loading })
   );
 }
 
+const IconUpload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+function ImportModal({ isOpen, onClose }) {
+  const [importFile, setImportFile] = useState(null);
+  const [importStep, setImportStep] = useState(1);
+  const [importColumns, setImportColumns] = useState([]);
+  const [importDataPreview, setImportDataPreview] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [importMapping, setImportMapping] = useState({
+    class_code: '',
+    class_name: '',
+    department_code: '',
+    lecturer_code: '',
+    school_year: ''
+  });
+
+  if (!isOpen) return null;
+
+  const closeImportModal = () => {
+    setImportFile(null);
+    setImportStep(1);
+    setImportColumns([]);
+    setImportDataPreview([]);
+    setImportError('');
+    setImportResult(null);
+    setImportMapping({ class_code: '', class_name: '', department_code: '', lecturer_code: '', school_year: '' });
+    onClose();
+  };
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([{
+      'M„ L?p': 'CNTT01',
+      'TÍn L?p': 'CÙng ngh? thÙng tin 01',
+      'M„ Khoa': 'CNTT',
+      'M„ GVCN': 'GV0001',
+      'KhÛa h?c': '2023-2027'
+    }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'mau_import_lop.xlsx');
+  };
+
+  const handlePreviewImport = async () => {
+    if (!importFile) return setImportError('Vui lÚng ch?n file Excel');
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      const res = await axiosClient.post('/classes/import/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImportColumns(res.data.headers || []);
+      setImportDataPreview(res.data.dataPreview || []);
+      setImportStep(2);
+      
+      const headers = res.data.headers || [];
+      const codeCol = headers.find(h => h.toLowerCase().includes('m„ l?p'));
+      const nameCol = headers.find(h => h.toLowerCase().includes('tÍn'));
+      const deptCol = headers.find(h => h.toLowerCase().includes('khoa'));
+      const gvCol = headers.find(h => h.toLowerCase().includes('gvcn') || h.toLowerCase().includes('gi?ng viÍn'));
+      const yearCol = headers.find(h => h.toLowerCase().includes('khÛa') || h.toLowerCase().includes('nam'));
+      setImportMapping({
+        class_code: codeCol || headers[0] || '',
+        class_name: nameCol || headers[1] || '',
+        department_code: deptCol || headers[2] || '',
+        lecturer_code: gvCol || headers[3] || '',
+        school_year: yearCol || headers[4] || ''
+      });
+    } catch (err) {
+      setImportError(err.response?.data?.message || 'L?i khi d?c file Excel');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleSubmitImport = async () => {
+    if (!importMapping.class_code || !importMapping.class_name || !importMapping.department_code) {
+      return setImportError('Vui lÚng map d?y d? M„ l?p, TÍn l?p v‡ M„ khoa');
+    }
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('mapping', JSON.stringify(importMapping));
+      const res = await axiosClient.post('/classes/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImportResult(res.data);
+      setImportStep(3);
+    } catch (err) {
+      setImportError(err.response?.data?.message || 'L?i khi import d? li?u');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={closeImportModal}>
+      <div className="modal modal--large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Import L?p t? Excel</h2>
+          <button className="modal-close" onClick={closeImportModal} disabled={importLoading}><IconX /></button>
+        </div>
+        <div className="modal-body">
+          {importStep === 1 && (
+            <>
+              <div className="form-group">
+                <label className="label">Ch?n file Excel *</label>
+                <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">
+                    T?i file m?u
+                  </button>
+                </div>
+              </div>
+              {importError && <div className="form-error">{importError}</div>}
+            </>
+          )}
+          {importStep === 2 && (
+            <>
+              <div className="card__subtitle">GhÈp c?t d? li?u</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div className="form-group">
+                  <label className="label">C?t M„ l?p *</label>
+                  <select className="input" value={importMapping.class_code} onChange={(e) => setImportMapping(p => ({ ...p, class_code: e.target.value }))}>
+                    <option value="">-- Ch?n c?t --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">C?t TÍn l?p *</label>
+                  <select className="input" value={importMapping.class_name} onChange={(e) => setImportMapping(p => ({ ...p, class_name: e.target.value }))}>
+                    <option value="">-- Ch?n c?t --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">C?t M„ khoa *</label>
+                  <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
+                    <option value="">-- Ch?n c?t --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">C?t M„ GVCN</label>
+                  <select className="input" value={importMapping.lecturer_code} onChange={(e) => setImportMapping(p => ({ ...p, lecturer_code: e.target.value }))}>
+                    <option value="">-- Ch?n c?t (T˘y ch?n) --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">KhÛa h?c</label>
+                  <select className="input" value={importMapping.school_year} onChange={(e) => setImportMapping(p => ({ ...p, school_year: e.target.value }))}>
+                    <option value="">-- Ch?n c?t (T˘y ch?n) --</option>
+                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              {importError && <div className="form-error">{importError}</div>}
+            </>
+          )}
+          {importStep === 3 && importResult && (
+            <>
+              <div className="card__subtitle">K?t qu? import</div>
+              <div>ThÍm m?i: {importResult.createdCount || 0}</div>
+              <div>C?p nh?t: {importResult.updatedCount || 0}</div>
+              <div>L?i: {importResult.failedCount || 0}</div>
+              {importResult.errors?.length > 0 && (
+                <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto', background: '#fee2e2', padding: 8, borderRadius: 4 }}>
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {importResult.errors.slice(0,10).map((err, i) => (
+                      <li key={i} style={{ color: '#991b1b' }}>DÚng {err.row}: {err.message}</li>
+                    ))}
+                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...v‡ {importResult.errors.length - 10} l?i kh·c</li>}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="modal-footer">
+          {importStep > 1 && importStep < 3 && (
+            <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>Quay l?i</button>
+          )}
+          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>–Ûng</button>
+          {importStep === 1 ? (
+            <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
+              {importLoading ? '–ang t?i...' : 'Ti?p t?c'}
+            </button>
+          ) : importStep === 2 ? (
+            <button type="button" className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>
+              {importLoading ? '–ang import...' : 'Import'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ClassesPage() {
   const [classes, setClasses] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -257,9 +475,13 @@ export default function ClassesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('name-asc');
 
   const fetchData = async () => {
     try {
@@ -346,22 +568,55 @@ export default function ClassesPage() {
     const dept = departments.find((d) => d.id === deptId);
     return dept ? `${dept.department_name} (${dept.department_code})` : '-';
   };
+  const filteredClasses = useMemo(() => {
+    const kw = keyword.toLowerCase();
+    return classes.filter((cls) => {
+      const matchKeyword = !kw
+        || (cls.class_code || '').toLowerCase().includes(kw)
+        || (cls.class_name || '').toLowerCase().includes(kw)
+        || (cls.homeroom_teacher_name || '').toLowerCase().includes(kw)
+        || (cls.school_year || '').toLowerCase().includes(kw);
+      const matchDept = departmentFilter === 'ALL' || String(cls.department_id) === departmentFilter;
+      return matchKeyword && matchDept;
+    });
+  }, [classes, keyword, departmentFilter]);
+
+  const sortedClasses = useMemo(() => {
+    const arr = [...filteredClasses];
+    switch (sortBy) {
+      case 'name-asc':
+        return arr.sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '', 'vi'));
+      case 'name-desc':
+        return arr.sort((a, b) => (b.class_name || '').localeCompare(a.class_name || '', 'vi'));
+      case 'code-asc':
+        return arr.sort((a, b) => (a.class_code || '').localeCompare(b.class_code || '', 'vi'));
+      case 'code-desc':
+        return arr.sort((a, b) => (b.class_code || '').localeCompare(a.class_code || '', 'vi'));
+      case 'newest':
+        return arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      case 'oldest':
+        return arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+      default:
+        return arr;
+    }
+  }, [filteredClasses, sortBy]);
+
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(classes.length / pageSize)),
-    [classes.length, pageSize]
+    () => Math.max(1, Math.ceil(sortedClasses.length / pageSize)),
+    [sortedClasses.length, pageSize]
   );
 
   const paginatedClasses = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return classes.slice(startIndex, startIndex + pageSize);
-  }, [classes, currentPage, pageSize]);
+    return sortedClasses.slice(startIndex, startIndex + pageSize);
+  }, [sortedClasses, currentPage, pageSize]);
 
-  const pageStart = classes.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const pageEnd = Math.min(currentPage * pageSize, classes.length);
+  const pageStart = sortedClasses.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, sortedClasses.length);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize]);
+  }, [keyword, departmentFilter, sortBy, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -377,7 +632,10 @@ export default function ClassesPage() {
         subtitle="Th√™m, ch·ªânh s·ª≠a, x√≥a l·ªõp h·ªçc"
         actions={
           <>
-            <button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
+            <button className="btn btn-secondary" onClick={() => setImportModalOpen(true)} disabled={loading}>
+              <IconUpload />
+              Import L?p
+            </button><button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
               <IconRefresh />
               L√†m m·ªõi
             </button>
@@ -393,11 +651,54 @@ export default function ClassesPage() {
         <div className="section-toolbar">
           <div>
             <div className="card__title">Danh s√°ch l·ªõp h·ªçc</div>
-            <div className="card__subtitle">T·∫•t c·∫£ c√°c l·ªõp ƒëang qu·∫£n l√Ω trong h·ªá th·ªëng</div>
+            <div className="card__subtitle">T√¨m theo m√£ l·ªõp, t√™n l·ªõp, GV ch·ªß nhi·ªám</div>
           </div>
           <div className="section-toolbar__meta">
-            {loading ? '...' : `${classes.length} l·ªõp`}
+            {loading ? '...' : `ƒêang hi·ªÉn th·ªã ${sortedClasses.length}/${classes.length} l·ªõp`}
           </div>
+        </div>
+
+        <div className="filter-bar filter-bar--flex">
+          <div className="filter-bar__search">
+            <span className="filter-bar__search-icon">
+              <IconSearch />
+            </span>
+            <input
+              className="input"
+              type="text"
+              placeholder="T√¨m theo m√£ l·ªõp, t√™n l·ªõp, GV ch·ªß nhi·ªám..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="select"
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+          >
+            <option value="ALL">T·∫•t c·∫£ khoa</option>
+            {departments.map((dept) => (
+              <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+            ))}
+          </select>
+
+          <select
+            className="select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="name-asc">T√™n l·ªõp A ‚Üí Z</option>
+            <option value="name-desc">T√™n l·ªõp Z ‚Üí A</option>
+            <option value="code-asc">M√£ l·ªõp A ‚Üí Z</option>
+            <option value="code-desc">M√£ l·ªõp Z ‚Üí A</option>
+            <option value="newest">M·ªõi nh·∫•t</option>
+            <option value="oldest">C≈© nh·∫•t</option>
+          </select>
+
+          <button className="btn btn-secondary" onClick={() => { setKeyword(''); setDepartmentFilter('ALL'); setSortBy('name-asc'); }}>
+            X√≥a b·ªô l·ªçc
+          </button>
         </div>
 
         {loading ? (
@@ -480,12 +781,12 @@ export default function ClassesPage() {
               </tbody>
             </table>
 
-            {classes.length > 0 ? (
+            {sortedClasses.length > 0 ? (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={classes.length}
+                totalItems={sortedClasses.length}
                 pageStart={pageStart}
                 pageEnd={pageEnd}
                 itemName="l·ªõp"
@@ -496,6 +797,13 @@ export default function ClassesPage() {
       </div>
 
       {/* Modals */}
+      <ImportModal
+        isOpen={importModalOpen}
+        onClose={() => {
+          setImportModalOpen(false);
+          fetchClasses();
+        }}
+      />
       <ClassModal
         isOpen={modalOpen}
         classItem={editingClass}
@@ -519,3 +827,5 @@ export default function ClassesPage() {
     </div>
   );
 }
+
+

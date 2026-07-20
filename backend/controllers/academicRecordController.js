@@ -207,3 +207,4 @@ exports.deleteAcademicRecord = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi xóa academic record' });
   }
 };
+

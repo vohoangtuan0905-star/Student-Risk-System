@@ -1,0 +1,19 @@
+# Node
+node_modules/
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+ai_core/venv/
+ai_core/data/
+ai_core/reports/
+
+# Build
+frontend/dist/
+
+# Misc
+*.log
+.DS_Store
