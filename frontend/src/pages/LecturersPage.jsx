@@ -1,8 +1,7 @@
-﻿import Pagination from "../components/Pagination";
+import Pagination from "../components/Pagination";
 import { useEffect, useMemo, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
-import * as XLSX from 'xlsx';
 
 const MAX_HOMEROOM_CLASSES = 2;
 
@@ -59,13 +58,6 @@ const IconX = () => (
   </svg>
 );
 
-const IconSearch = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
-);
-
 const IconAssign = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 7h11" />
@@ -109,11 +101,11 @@ function LecturerModal({ isOpen, lecturer, departments, onClose, onSave, loading
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.full_name.trim()) newErrors.full_name = 'Há» tÃªn khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
-    if (!formData.email.trim()) newErrors.email = 'Email khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Email khÃ´ng há»£p lá»‡';
-    if (!lecturer && !formData.password) newErrors.password = 'Máº­t kháº©u khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
-    if (formData.password && formData.password.length < 6) newErrors.password = 'Máº­t kháº©u pháº£i tá»« 6 kÃ½ tá»±';
+    if (!formData.full_name.trim()) newErrors.full_name = 'Họ tên không được bỏ trống';
+    if (!formData.email.trim()) newErrors.email = 'Email không được bỏ trống';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Email không hợp lệ';
+    if (!lecturer && !formData.password) newErrors.password = 'Mật khẩu không được bỏ trống';
+    if (formData.password && formData.password.length < 6) newErrors.password = 'Mật khẩu phải từ 6 ký tự';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -142,13 +134,13 @@ function LecturerModal({ isOpen, lecturer, departments, onClose, onSave, loading
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">{lecturer ? `Chá»‰nh sá»­a giáº£ng viÃªn: ${lecturer.full_name}` : 'ThÃªm giáº£ng viÃªn má»›i'}</h2>
+          <h2 className="modal-title">{lecturer ? `Chỉnh sửa giảng viên: ${lecturer.full_name}` : 'Thêm giảng viên mới'}</h2>
           <button className="modal-close" onClick={onClose}><IconX /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-body">
           <div className="form-group">
-            <label className="label">Há» tÃªn</label>
+            <label className="label">Họ tên</label>
             <input
               className={`input ${errors.full_name ? 'input--error' : ''}`}
               value={formData.full_name}
@@ -164,13 +156,13 @@ function LecturerModal({ isOpen, lecturer, departments, onClose, onSave, loading
               className={`input ${errors.email ? 'input--error' : ''}`}
               value={formData.email}
               onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-
+              disabled={!!lecturer}
             />
             {errors.email && <div className="form-error">{errors.email}</div>}
           </div>
 
           <div className="form-group">
-            <label className="label">{lecturer ? 'Máº­t kháº©u má»›i (khÃ´ng báº¯t buá»™c)' : 'Máº­t kháº©u'}</label>
+            <label className="label">{lecturer ? 'Mật khẩu mới (không bắt buộc)' : 'Mật khẩu'}</label>
             <input
               type="password"
               className={`input ${errors.password ? 'input--error' : ''}`}
@@ -181,13 +173,13 @@ function LecturerModal({ isOpen, lecturer, departments, onClose, onSave, loading
           </div>
 
           <div className="form-group">
-            <label className="label">Khoa (tÃ¹y chá»n)</label>
+            <label className="label">Khoa (tùy chọn)</label>
             <select
               className="input"
               value={formData.department_id}
               onChange={(e) => setFormData((prev) => ({ ...prev, department_id: e.target.value }))}
             >
-              <option value="">-- KhÃ´ng chá»n --</option>
+              <option value="">-- Không chọn --</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>{dept.department_name}</option>
               ))}
@@ -201,12 +193,12 @@ function LecturerModal({ isOpen, lecturer, departments, onClose, onSave, loading
               checked={Number(formData.is_active) === 1}
               onChange={(e) => setFormData((prev) => ({ ...prev, is_active: e.target.checked ? 1 : 0 }))}
             />
-            <label htmlFor="lecturer-active" style={{ margin: 0 }}>TÃ i khoáº£n hoáº¡t Ä‘á»™ng</label>
+            <label htmlFor="lecturer-active" style={{ margin: 0 }}>Tài khoản hoạt động</label>
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Há»§y</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Äang lÆ°u...' : 'LÆ°u'}</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Đang lưu...' : 'Lưu'}</button>
           </div>
         </form>
       </div>
@@ -257,18 +249,18 @@ function AssignClassesModal({ isOpen, lecturer, classes, onClose, onSave, loadin
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">PhÃ¢n cÃ´ng lá»›p chá»§ nhiá»‡m: {lecturer.full_name}</h2>
+          <h2 className="modal-title">Phân công lớp chủ nhiệm: {lecturer.full_name}</h2>
           <button className="modal-close" onClick={onClose}><IconX /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-body">
           <div className="card__subtitle" style={{ marginBottom: 10 }}>
-            Chá»n tá»‘i Ä‘a {MAX_HOMEROOM_CLASSES} lá»›p. Äang chá»n {selectedClassIds.length}/{MAX_HOMEROOM_CLASSES}.
+            Chọn tối đa {MAX_HOMEROOM_CLASSES} lớp. Đang chọn {selectedClassIds.length}/{MAX_HOMEROOM_CLASSES}.
           </div>
 
           <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 10, padding: 10 }}>
             {classOptions.length === 0 ? (
-              <div className="text-muted">KhÃ´ng cÃ³ lá»›p kháº£ dá»¥ng Ä‘á»ƒ phÃ¢n cÃ´ng.</div>
+              <div className="text-muted">Không có lớp khả dụng để phân công.</div>
             ) : classOptions.map((cls) => {
               const clsId = Number(cls.id);
               const checked = selectedClassIds.includes(clsId);
@@ -296,208 +288,17 @@ function AssignClassesModal({ isOpen, lecturer, classes, onClose, onSave, loadin
                   />
                   <span className="mono" style={{ minWidth: 90 }}>{cls.class_code}</span>
                   <span>{cls.class_name}</span>
-                  {isCurrent ? <span className="badge badge-safe">Äang phá»¥ trÃ¡ch</span> : null}
+                  {isCurrent ? <span className="badge badge-safe">Đang phụ trách</span> : null}
                 </label>
               );
             })}
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Há»§y</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Äang lÆ°u...' : 'LÆ°u phÃ¢n cÃ´ng'}</button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Đang lưu...' : 'Lưu phân công'}</button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}
-
-const IconUpload = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
-  </svg>
-);
-
-function ImportModal({ isOpen, onClose }) {
-  const [importFile, setImportFile] = useState(null);
-  const [importStep, setImportStep] = useState(1);
-  const [importColumns, setImportColumns] = useState([]);
-  const [importDataPreview, setImportDataPreview] = useState([]);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importError, setImportError] = useState('');
-  const [importResult, setImportResult] = useState(null);
-  const [importMapping, setImportMapping] = useState({
-    full_name: '',
-    email: '',
-    department_code: ''
-  });
-
-  if (!isOpen) return null;
-
-  const closeImportModal = () => {
-    setImportFile(null);
-    setImportStep(1);
-    setImportColumns([]);
-    setImportDataPreview([]);
-    setImportError('');
-    setImportResult(null);
-    setImportMapping({ full_name: '', email: '', department_code: '' });
-    onClose();
-  };
-
-  const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([{
-      'H? tên': 'Nguy?n Van A',
-      'Email': 'nva@email.com',
-      'Mã Khoa': 'CNTT'
-    }]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    XLSX.writeFile(wb, 'mau_import_giangvien.xlsx');
-  };
-
-  const handlePreviewImport = async () => {
-    if (!importFile) return setImportError('Vui lòng ch?n file Excel');
-    setImportLoading(true);
-    setImportError('');
-    try {
-      const formData = new FormData();
-      formData.append('file', importFile);
-      const res = await axiosClient.post('/lecturers/import/preview', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setImportColumns(res.data.headers || []);
-      setImportDataPreview(res.data.dataPreview || []);
-      setImportStep(2);
-      
-      const headers = res.data.headers || [];
-      const nameCol = headers.find(h => h.toLowerCase().includes('tên'));
-      const emailCol = headers.find(h => h.toLowerCase().includes('email'));
-      const deptCol = headers.find(h => h.toLowerCase().includes('khoa'));
-      setImportMapping({
-        full_name: nameCol || headers[0] || '',
-        email: emailCol || headers[1] || '',
-        department_code: deptCol || headers[2] || ''
-      });
-    } catch (err) {
-      setImportError(err.response?.data?.message || 'L?i khi d?c file Excel');
-    } finally {
-      setImportLoading(false);
-    }
-  };
-
-  const handleSubmitImport = async () => {
-    if (!importMapping.full_name || !importMapping.email) {
-      return setImportError('Vui lòng map d?y d? H? tên và Email');
-    }
-    setImportLoading(true);
-    setImportError('');
-    try {
-      const formData = new FormData();
-      formData.append('file', importFile);
-      formData.append('mapping', JSON.stringify(importMapping));
-      const res = await axiosClient.post('/lecturers/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setImportResult(res.data);
-      setImportStep(3);
-    } catch (err) {
-      setImportError(err.response?.data?.message || 'L?i khi import d? li?u');
-    } finally {
-      setImportLoading(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={closeImportModal}>
-      <div className="modal modal--large" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">Import Gi?ng viên t? Excel</h2>
-          <button className="modal-close" onClick={closeImportModal} disabled={importLoading}><IconX /></button>
-        </div>
-        <div className="modal-body">
-          {importStep === 1 && (
-            <>
-              <div className="form-group">
-                <label className="label">Ch?n file Excel *</label>
-                <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
-                <div style={{ marginTop: 12 }}>
-                  <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">
-                    T?i file m?u
-                  </button>
-                </div>
-              </div>
-              {importError && <div className="form-error">{importError}</div>}
-            </>
-          )}
-          {importStep === 2 && (
-            <>
-              <div className="card__subtitle">Ghép c?t d? li?u</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <div className="form-group">
-                  <label className="label">C?t H? tên *</label>
-                  <select className="input" value={importMapping.full_name} onChange={(e) => setImportMapping(p => ({ ...p, full_name: e.target.value }))}>
-                    <option value="">-- Ch?n c?t --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="label">C?t Email *</label>
-                  <select className="input" value={importMapping.email} onChange={(e) => setImportMapping(p => ({ ...p, email: e.target.value }))}>
-                    <option value="">-- Ch?n c?t --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="label">C?t Mã khoa</label>
-                  <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
-                    <option value="">-- Ch?n c?t (Tùy ch?n) --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-hint" style={{ marginTop: 8 }}>
-                Luu ý: M?t kh?u m?c d?nh cho các Gi?ng viên m?i s? là <strong>123456</strong>. Mã Gi?ng viên (GVxxxx) s? du?c t? d?ng t?o.
-              </div>
-              {importError && <div className="form-error">{importError}</div>}
-            </>
-          )}
-          {importStep === 3 && importResult && (
-            <>
-              <div className="card__subtitle">K?t qu? import</div>
-              <div>Thêm m?i: {importResult.createdCount || 0}</div>
-              <div>C?p nh?t: {importResult.updatedCount || 0}</div>
-              <div>L?i: {importResult.failedCount || 0}</div>
-              {importResult.errors?.length > 0 && (
-                <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto', background: '#fee2e2', padding: 8, borderRadius: 4 }}>
-                  <ul style={{ margin: 0, paddingLeft: 20 }}>
-                    {importResult.errors.slice(0,10).map((err, i) => (
-                      <li key={i} style={{ color: '#991b1b' }}>Dòng {err.row}: {err.message}</li>
-                    ))}
-                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...và {importResult.errors.length - 10} l?i khác</li>}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        <div className="modal-footer">
-          {importStep > 1 && importStep < 3 && (
-            <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>Quay l?i</button>
-          )}
-          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>Ðóng</button>
-          {importStep === 1 ? (
-            <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
-              {importLoading ? 'Ðang t?i...' : 'Ti?p t?c'}
-            </button>
-          ) : importStep === 2 ? (
-            <button type="button" className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>
-              {importLoading ? 'Ðang import...' : 'Import'}
-            </button>
-          ) : null}
-        </div>
       </div>
     </div>
   );
@@ -513,13 +314,11 @@ export default function LecturersPage() {
   const [error, setError] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingLecturer, setEditingLecturer] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assigningLecturer, setAssigningLecturer] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('name-asc');
 
   const stats = useMemo(() => {
     const active = lecturers.filter((item) => Number(item.is_active) === 1).length;
@@ -546,7 +345,7 @@ export default function LecturersPage() {
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : (deptRes.data?.data || []));
       setClasses(Array.isArray(classRes.data) ? classRes.data : (classRes.data?.data || []));
     } catch (err) {
-      setError(err?.response?.data?.message || 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u giáº£ng viÃªn');
+      setError(err?.response?.data?.message || 'Không thể tải dữ liệu giảng viên');
       setLecturers([]);
       setDepartments([]);
       setClasses([]);
@@ -571,32 +370,32 @@ export default function LecturersPage() {
       setActionLoading(true);
       if (editingLecturer) {
         await axiosClient.put(`/lecturers/${editingLecturer.id}`, payload);
-        alert('Cáº­p nháº­t giáº£ng viÃªn thÃ nh cÃ´ng');
+        alert('Cập nhật giảng viên thành công');
       } else {
         await axiosClient.post('/lecturers', payload);
-        alert('ThÃªm giáº£ng viÃªn thÃ nh cÃ´ng');
+        alert('Thêm giảng viên thành công');
       }
       setModalOpen(false);
       setEditingLecturer(null);
       await fetchData();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lá»—i khi lÆ°u giáº£ng viÃªn');
+      alert(err?.response?.data?.message || 'Lỗi khi lưu giảng viên');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDeleteLecturer = async (lecturer) => {
-    const confirmed = window.confirm(`XÃ³a giáº£ng viÃªn ${lecturer.full_name}?`);
+    const confirmed = window.confirm(`Xóa giảng viên ${lecturer.full_name}?`);
     if (!confirmed) return;
 
     try {
       setActionLoading(true);
       await axiosClient.delete(`/lecturers/${lecturer.id}`);
-      alert('XÃ³a giáº£ng viÃªn thÃ nh cÃ´ng');
+      alert('Xóa giảng viên thành công');
       await fetchData();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lá»—i khi xÃ³a giáº£ng viÃªn');
+      alert(err?.response?.data?.message || 'Lỗi khi xóa giảng viên');
     } finally {
       setActionLoading(false);
     }
@@ -608,12 +407,12 @@ export default function LecturersPage() {
       await axiosClient.put(`/lecturers/${assigningLecturer.id}/homeroom-classes`, {
         class_ids: classIds,
       });
-      alert('LÆ°u phÃ¢n cÃ´ng chá»§ nhiá»‡m thÃ nh cÃ´ng');
+      alert('Lưu phân công chủ nhiệm thành công');
       setAssignModalOpen(false);
       setAssigningLecturer(null);
       await fetchData();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lá»—i khi phÃ¢n cÃ´ng lá»›p chá»§ nhiá»‡m');
+      alert(err?.response?.data?.message || 'Lỗi khi phân công lớp chủ nhiệm');
     } finally {
       setActionLoading(false);
     }
@@ -622,15 +421,15 @@ export default function LecturersPage() {
   const renderHomeroomStatus = (lecturer) => {
     const classCount = Number(lecturer.homeroom_class_count || 0);
     let statusClass = 'badge-gray';
-    let statusText = 'ChÆ°a phÃ¢n cÃ´ng';
+    let statusText = 'Chưa phân công';
 
     if (classCount === 1) {
       statusClass = 'badge-warning';
-      statusText = 'Äang phá»¥ trÃ¡ch 1/2';
+      statusText = 'Đang phụ trách 1/2';
     }
     if (classCount >= MAX_HOMEROOM_CLASSES) {
       statusClass = 'badge-success';
-      statusText = `Äá»§ ${MAX_HOMEROOM_CLASSES}/${MAX_HOMEROOM_CLASSES}`;
+      statusText = `Đủ ${MAX_HOMEROOM_CLASSES}/${MAX_HOMEROOM_CLASSES}`;
     }
 
     const homeroomClasses = Array.isArray(lecturer.homeroom_classes) ? lecturer.homeroom_classes : [];
@@ -651,44 +450,28 @@ export default function LecturersPage() {
               </span>
             ))
           ) : (
-            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>ChÆ°a cÃ³ lá»›p chá»§ nhiá»‡m</span>
+            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>Chưa có lớp chủ nhiệm</span>
           )}
         </div>
       </div>
     );
   };
-  const sortedLecturers = useMemo(() => {
-    const arr = [...lecturers];
-    switch (sortBy) {
-      case 'name-asc':
-        return arr.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'));
-      case 'name-desc':
-        return arr.sort((a, b) => (b.full_name || '').localeCompare(a.full_name || '', 'vi'));
-      case 'email-asc':
-        return arr.sort((a, b) => (a.email || '').localeCompare(b.email || '', 'vi'));
-      case 'email-desc':
-        return arr.sort((a, b) => (b.email || '').localeCompare(a.email || '', 'vi'));
-      default:
-        return arr;
-    }
-  }, [lecturers, sortBy]);
-
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(sortedLecturers.length / pageSize)),
-    [sortedLecturers.length, pageSize]
+    () => Math.max(1, Math.ceil(lecturers.length / pageSize)),
+    [lecturers.length, pageSize]
   );
 
   const paginatedLecturers = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return sortedLecturers.slice(startIndex, startIndex + pageSize);
-  }, [sortedLecturers, currentPage, pageSize]);
+    return lecturers.slice(startIndex, startIndex + pageSize);
+  }, [lecturers, currentPage, pageSize]);
 
-  const pageStart = sortedLecturers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const pageEnd = Math.min(currentPage * pageSize, sortedLecturers.length);
+  const pageStart = lecturers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, lecturers.length);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [sortBy, pageSize]);
+  }, [pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -700,84 +483,66 @@ export default function LecturersPage() {
   return (
     <div className="page-wrapper">
       <PageHeader
-        title="Quáº£n lÃ½ giáº£ng viÃªn"
-        subtitle="CRUD giáº£ng viÃªn vÃ  phÃ¢n cÃ´ng má»—i giáº£ng viÃªn phá»¥ trÃ¡ch tá»‘i Ä‘a 2 lá»›p"
+        title="Quản lý giảng viên"
+        subtitle="CRUD giảng viên và phân công mỗi giảng viên phụ trách tối đa 2 lớp"
         actions={(
           <>
             <button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
               <IconRefresh />
-              LÃ m má»›i
+              Làm mới
             </button>
             <button className="btn btn-primary" onClick={() => { setEditingLecturer(null); setModalOpen(true); }}>
               <IconPlus />
-              ThÃªm giáº£ng viÃªn
+              Thêm giảng viên
             </button>
           </>
         )}
       />
 
       <div className="stats-grid">
-        <div className="stat-card stat-card--blue"><div className="stat-card__icon stat-card__icon--blue"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.total}</div><div className="stat-card__label">Tá»•ng giáº£ng viÃªn</div></div></div>
-        <div className="stat-card stat-card--green"><div className="stat-card__icon stat-card__icon--green"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.active}</div><div className="stat-card__label">Äang hoáº¡t Ä‘á»™ng</div></div></div>
-        <div className="stat-card stat-card--yellow"><div className="stat-card__icon stat-card__icon--yellow"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.fullyAssigned}</div><div className="stat-card__label">Äá»§ 2 lá»›p chá»§ nhiá»‡m</div></div></div>
+        <div className="stat-card stat-card--blue"><div className="stat-card__icon stat-card__icon--blue"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.total}</div><div className="stat-card__label">Tổng giảng viên</div></div></div>
+        <div className="stat-card stat-card--green"><div className="stat-card__icon stat-card__icon--green"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.active}</div><div className="stat-card__label">Đang hoạt động</div></div></div>
+        <div className="stat-card stat-card--yellow"><div className="stat-card__icon stat-card__icon--yellow"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.fullyAssigned}</div><div className="stat-card__label">Đủ 2 lớp chủ nhiệm</div></div></div>
       </div>
 
       <div className="card">
         <div className="section-toolbar">
           <div>
-            <div className="card__title">Danh sÃ¡ch giáº£ng viÃªn</div>
-            <div className="card__subtitle">Theo dÃµi phÃ¢n cÃ´ng chá»§ nhiá»‡m theo tá»«ng giáº£ng viÃªn</div>
+            <div className="card__title">Danh sách giảng viên</div>
+            <div className="card__subtitle">Theo dõi phân công chủ nhiệm theo từng giảng viên</div>
           </div>
-          <div className="section-toolbar__meta">{loading ? '...' : `${lecturers.length} giáº£ng viÃªn`}</div>
+          <div className="section-toolbar__meta">{loading ? '...' : `${lecturers.length} giảng viên`}</div>
         </div>
 
-        <div className="filter-bar filter-bar--flex">
-          <div className="filter-bar__search">
-            <span className="filter-bar__search-icon">
-              <IconSearch />
-            </span>
+        <div className="section-toolbar" style={{ paddingTop: 0 }}>
+          <div style={{ flex: 1 }}>
             <input
               className="input"
-              placeholder="TÃ¬m theo mÃ£, há» tÃªn, email, khoa..."
+              placeholder="Tìm theo mã, họ tên, email, khoa..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-
-          <select
-            className="select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="name-asc">Há» tÃªn A â†’ Z</option>
-            <option value="name-desc">Há» tÃªn Z â†’ A</option>
-            <option value="email-asc">Email A â†’ Z</option>
-            <option value="email-desc">Email Z â†’ A</option>
-          </select>
-
-          <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setSortBy('name-asc'); }}>
-            XÃ³a bá»™ lá»c
-          </button>
         </div>
 
         {loading ? (
-          <div className="loading loading--flex"><div className="loading__spinner" />Äang táº£i dá»¯ liá»‡u giáº£ng viÃªn...</div>
+          <div className="loading loading--flex"><div className="loading__spinner" />Đang tải dữ liệu giảng viên...</div>
         ) : error ? (
-          <EmptyPanel icon={<IconAlert />} title="KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u" description={error} actions={<button className="btn btn-primary" onClick={fetchData}>Thá»­ láº¡i</button>} />
+          <EmptyPanel icon={<IconAlert />} title="Không thể tải dữ liệu" description={error} actions={<button className="btn btn-primary" onClick={fetchData}>Thử lại</button>} />
         ) : lecturers.length === 0 ? (
-          <EmptyPanel icon={<IconUsers />} title="ChÆ°a cÃ³ giáº£ng viÃªn" description="HÃ£y thÃªm giáº£ng viÃªn Ä‘á»ƒ báº¯t Ä‘áº§u phÃ¢n cÃ´ng chá»§ nhiá»‡m" />
+          <EmptyPanel icon={<IconUsers />} title="Chưa có giảng viên" description="Hãy thêm giảng viên để bắt đầu phân công chủ nhiệm" />
         ) : (
           <div className="table-wrapper">
             <table className="table">
               <thead>
                 <tr>
-                  <th>MÃ£ GV</th>
-                  <th>Há» tÃªn</th>
+                  <th>Mã GV</th>
+                  <th>Họ tên</th>
                   <th>Email</th>
                   <th>Khoa</th>
-                  <th>Tráº¡ng thÃ¡i</th>
-                  <th>Chá»§ nhiá»‡m</th>
-                  <th>HÃ nh Ä‘á»™ng</th>
+                  <th>Trạng thái</th>
+                  <th>Chủ nhiệm</th>
+                  <th>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -789,7 +554,7 @@ export default function LecturersPage() {
                     <td>{lecturer.department_name || '-'}</td>
                     <td>
                       <span className={`badge ${Number(lecturer.is_active) === 1 ? 'badge-success' : 'badge-gray'}`}>
-                        {Number(lecturer.is_active) === 1 ? 'Hoáº¡t Ä‘á»™ng' : 'VÃ´ hiá»‡u hÃ³a'}
+                        {Number(lecturer.is_active) === 1 ? 'Hoạt động' : 'Vô hiệu hóa'}
                       </span>
                     </td>
                     <td>
@@ -803,15 +568,15 @@ export default function LecturersPage() {
                             setAssigningLecturer(lecturer);
                             setAssignModalOpen(true);
                           }}
-                          title="PhÃ¢n cÃ´ng chá»§ nhiá»‡m"
+                          title="Phân công chủ nhiệm"
                         >
                           <IconAssign />
-                          PhÃ¢n cÃ´ng
+                          Phân công
                         </button>
-                        <button className="btn btn-sm btn-secondary" onClick={() => { setEditingLecturer(lecturer); setModalOpen(true); }} title="Chá»‰nh sá»­a">
+                        <button className="btn btn-sm btn-secondary" onClick={() => { setEditingLecturer(lecturer); setModalOpen(true); }} title="Chỉnh sửa">
                           <IconEdit />
                         </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDeleteLecturer(lecturer)} disabled={actionLoading} title="XÃ³a">
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDeleteLecturer(lecturer)} disabled={actionLoading} title="Xóa">
                           <IconTrash />
                         </button>
                       </div>
@@ -821,15 +586,15 @@ export default function LecturersPage() {
               </tbody>
             </table>
 
-            {sortedLecturers.length > 0 ? (
+            {lecturers.length > 0 ? (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={sortedLecturers.length}
+                totalItems={lecturers.length}
                 pageStart={pageStart}
                 pageEnd={pageEnd}
-                itemName="giáº£ng viÃªn"
+                itemName="giảng viên"
               />
             ) : null}
           </div>
@@ -856,4 +621,3 @@ export default function LecturersPage() {
     </div>
   );
 }
-

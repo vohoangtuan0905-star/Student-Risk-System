@@ -440,6 +440,7 @@ exports.assignHomeroomClasses = async (req, res) => {
     connection.release();
   }
 };
+
 const XLSX = require('xlsx');
 
 const normalizeHeader = (value) => String(value || '').trim();
@@ -447,7 +448,7 @@ const normalizeHeader = (value) => String(value || '').trim();
 const parseExcelBuffer = (buffer) => {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheetName = workbook.SheetNames[0];
-  if (!sheetName) throw new Error('Không tìm th?y sheet trong file Excel');
+  if (!sheetName) throw new Error('File Excel khÃ´ng cÃ³ sheet nÃ o');
   const sheet = workbook.Sheets[sheetName];
   return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 };
@@ -463,30 +464,30 @@ const buildHeaderIndex = (headers) => {
 
 exports.previewImportLecturers = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: 'Vui lòng ch?n file Excel' });
+    if (!req.file) return res.status(400).json({ message: 'Vui long chon file Excel' });
     const rows = parseExcelBuffer(req.file.buffer);
-    if (!rows.length) return res.status(400).json({ message: 'File Excel r?ng' });
+    if (!rows.length) return res.status(400).json({ message: 'File Excel rong' });
 
     const headers = rows[0].map(normalizeHeader);
     const dataPreview = rows.slice(1, 6);
     res.json({ headers, dataPreview, totalRows: Math.max(0, rows.length - 1) });
   } catch (error) {
     console.error('previewImportLecturers error:', error);
-    res.status(500).json({ message: 'L?i server khi xem tru?c import Excel' });
+    res.status(500).json({ message: 'Loi server khi xem truoc import Excel' });
   }
 };
 
 exports.importLecturers = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: 'Vui lòng ch?n file Excel' });
+    if (!req.file) return res.status(400).json({ message: 'Vui long chon file Excel' });
     const mapping = req.body.mapping ? JSON.parse(req.body.mapping) : {};
-    
+
     if (!mapping.full_name || !mapping.email) {
-      return res.status(400).json({ message: 'Thi?u mapping cho full_name và email' });
+      return res.status(400).json({ message: 'Thieu mapping cho full_name va email' });
     }
 
     const rows = parseExcelBuffer(req.file.buffer);
-    if (rows.length < 2) return res.status(400).json({ message: 'File Excel r?ng' });
+    if (rows.length < 2) return res.status(400).json({ message: 'File Excel rong' });
 
     const headers = rows[0];
     const headerIndex = buildHeaderIndex(headers);
@@ -526,7 +527,7 @@ exports.importLecturers = async (req, res) => {
 
       if (!fullName && !email) continue;
       if (!fullName || !email) {
-        errors.push({ row: rowIndex + 1, message: 'Thi?u H? tên ho?c Email' });
+        errors.push({ row: rowIndex + 1, message: 'Thieu Ho ten hoac Email' });
         continue;
       }
 
@@ -534,28 +535,28 @@ exports.importLecturers = async (req, res) => {
       if (deptCode) {
         deptId = deptMap.get(deptCode);
         if (!deptId) {
-          errors.push({ row: rowIndex + 1, message: `Không tìm th?y Khoa có mã: ${deptCode}` });
+          errors.push({ row: rowIndex + 1, message: `Khong tim thay Khoa co ma: ${deptCode}` });
           continue;
         }
       }
 
       if (existingMap.has(email)) {
-        await db.query(`UPDATE users SET full_name = ?, department_id = ? WHERE email = ? AND role = 'teacher'`, 
+        await db.query(`UPDATE users SET full_name = ?, department_id = ? WHERE email = ? AND role = 'teacher'`,
           [fullName, deptId, email]);
         updatedCount++;
       } else {
         lastNumber++;
         const lecturerCode = `GV${String(lastNumber).padStart(4, '0')}`;
-        const [result] = await db.query(`INSERT INTO users (full_name, email, password_hash, role, department_id, is_active, lecturer_code) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+        const [result] = await db.query(`INSERT INTO users (full_name, email, password_hash, role, department_id, is_active, lecturer_code) VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [fullName, email, defaultPasswordHash, 'teacher', deptId, 1, lecturerCode]);
         existingMap.set(email, result.insertId);
         createdCount++;
       }
     }
 
-    res.json({ message: 'Import Gi?ng viên hoàn t?t', createdCount, updatedCount, failedCount: errors.length, errors });
+    res.json({ message: 'Import Giang vien hoan tat', createdCount, updatedCount, failedCount: errors.length, errors });
   } catch (error) {
     console.error('importLecturers error:', error);
-    res.status(500).json({ message: 'L?i server khi import Gi?ng viên' });
+    res.status(500).json({ message: 'Loi server khi import Giang vien' });
   }
 };

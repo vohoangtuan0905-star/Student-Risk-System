@@ -1,4 +1,4 @@
-﻿import Pagination from "../components/Pagination";
+import Pagination from "../components/Pagination";
 import { useMemo, useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
@@ -57,10 +57,19 @@ const IconX = () => (
   </svg>
 );
 
-const IconSearch = () => (
+const IconUpload = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+const IconDownload = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 
@@ -98,10 +107,10 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.class_code.trim()) newErrors.class_code = 'MÃ£ lá»›p khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
-    if (!formData.class_name.trim()) newErrors.class_name = 'TÃªn lá»›p khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
-    if (!formData.department_id) newErrors.department_id = 'Vui lÃ²ng chá»n khoa';
-    if (!formData.school_year.trim()) newErrors.school_year = 'NÄƒm há»c khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
+    if (!formData.class_code.trim()) newErrors.class_code = 'Mã lớp không được bỏ trống';
+    if (!formData.class_name.trim()) newErrors.class_name = 'Tên lớp không được bỏ trống';
+    if (!formData.department_id) newErrors.department_id = 'Vui lòng chọn khoa';
+    if (!formData.school_year.trim()) newErrors.school_year = 'Năm học không được bỏ trống';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -119,7 +128,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
-            {classItem ? `Chá»‰nh sá»­a lá»›p: ${classItem.class_name}` : 'ThÃªm lá»›p má»›i'}
+            {classItem ? `Chỉnh sửa lớp: ${classItem.class_name}` : 'Thêm lớp mới'}
           </h2>
           <button className="modal-close" onClick={onClose}>
             <IconX />
@@ -128,7 +137,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
         <form onSubmit={handleSubmit} className="modal-body">
           <div className="form-group">
-            <label className="label">MÃ£ lá»›p</label>
+            <label className="label">Mã lớp</label>
             <input
               type="text"
               className={`input ${errors.class_code ? 'input--error' : ''}`}
@@ -141,7 +150,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
           </div>
 
           <div className="form-group">
-            <label className="label">TÃªn lá»›p</label>
+            <label className="label">Tên lớp</label>
             <input
               type="text"
               className={`input ${errors.class_name ? 'input--error' : ''}`}
@@ -159,7 +168,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
               value={formData.department_id}
               onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
             >
-              <option value="">-- Chá»n khoa --</option>
+              <option value="">-- Chọn khoa --</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>
                   {dept.department_name} ({dept.department_code})
@@ -170,7 +179,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
           </div>
 
           <div className="form-group">
-            <label className="label">NÄƒm há»c</label>
+            <label className="label">Năm học</label>
             <input
               type="text"
               className={`input ${errors.school_year ? 'input--error' : ''}`}
@@ -182,13 +191,13 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
           </div>
 
           <div className="form-group">
-            <label className="label">GV chá»§ nhiá»‡m (tÃ¹y chá»n)</label>
+            <label className="label">GV chủ nhiệm (tùy chọn)</label>
             <select
               className="input"
               value={formData.homeroom_teacher_id || ''}
               onChange={(e) => setFormData({ ...formData, homeroom_teacher_id: e.target.value ? Number(e.target.value) : '' })}
             >
-              <option value="">-- KhÃ´ng gÃ¡n chá»§ nhiá»‡m --</option>
+              <option value="">-- Không gán chủ nhiệm --</option>
               {teachers.map((teacher) => {
                 const classCount = Number(teacher.homeroom_class_count || 0);
                 const isCurrentHomeroom = Number(classItem?.homeroom_teacher_id) === Number(teacher.id);
@@ -196,7 +205,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
                 return (
                   <option key={teacher.id} value={teacher.id} disabled={reachedLimit}>
-                    {teacher.full_name} ({teacher.email}) - {classCount}/2 lá»›p{reachedLimit ? ' - ÄÃ£ Ä‘á»§' : ''}
+                    {teacher.full_name} ({teacher.email}) - {classCount}/2 lớp{reachedLimit ? ' - Đã đủ' : ''}
                   </option>
                 );
               })}
@@ -205,10 +214,10 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Há»§y
+              Hủy
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Äang lÆ°u...' : 'LÆ°u'}
+              {loading ? 'Đang lưu...' : 'Lưu'}
             </button>
           </div>
         </form>
@@ -225,7 +234,7 @@ function ConfirmDeleteModal({ isOpen, className, onConfirm, onCancel, loading })
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal modal--small" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">XÃ¡c nháº­n xÃ³a</h2>
+          <h2 className="modal-title">Xác nhận xóa</h2>
           <button className="modal-close" onClick={onCancel}>
             <IconX />
           </button>
@@ -236,230 +245,20 @@ function ConfirmDeleteModal({ isOpen, className, onConfirm, onCancel, loading })
             <div className="empty-state__icon" style={{ color: 'var(--red-500)' }}>
               <IconAlert />
             </div>
-            <div className="empty-state__title">XÃ³a lá»›p: {className}?</div>
+            <div className="empty-state__title">Xóa lớp: {className}?</div>
             <div className="empty-state__desc">
-              HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c. Táº¥t cáº£ sinh viÃªn vÃ  báº£n ghi há»c táº­p cÅ©ng sáº½ bá»‹ xÃ³a.
+              Hành động này không thể hoàn tác. Tất cả sinh viên và bản ghi học tập cũng sẽ bị xóa.
             </div>
           </div>
         </div>
 
         <div className="modal-footer">
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            Há»§y
+            Hủy
           </button>
           <button type="button" className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Äang xÃ³a...' : 'XÃ³a'}
+            {loading ? 'Đang xóa...' : 'Xóa'}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const IconUpload = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
-  </svg>
-);
-
-function ImportModal({ isOpen, onClose }) {
-  const [importFile, setImportFile] = useState(null);
-  const [importStep, setImportStep] = useState(1);
-  const [importColumns, setImportColumns] = useState([]);
-  const [importDataPreview, setImportDataPreview] = useState([]);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importError, setImportError] = useState('');
-  const [importResult, setImportResult] = useState(null);
-  const [importMapping, setImportMapping] = useState({
-    class_code: '',
-    class_name: '',
-    department_code: '',
-    lecturer_code: '',
-    school_year: ''
-  });
-
-  if (!isOpen) return null;
-
-  const closeImportModal = () => {
-    setImportFile(null);
-    setImportStep(1);
-    setImportColumns([]);
-    setImportDataPreview([]);
-    setImportError('');
-    setImportResult(null);
-    setImportMapping({ class_code: '', class_name: '', department_code: '', lecturer_code: '', school_year: '' });
-    onClose();
-  };
-
-  const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([{
-      'Mã L?p': 'CNTT01',
-      'Tên L?p': 'Công ngh? thông tin 01',
-      'Mã Khoa': 'CNTT',
-      'Mã GVCN': 'GV0001',
-      'Khóa h?c': '2023-2027'
-    }]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    XLSX.writeFile(wb, 'mau_import_lop.xlsx');
-  };
-
-  const handlePreviewImport = async () => {
-    if (!importFile) return setImportError('Vui lòng ch?n file Excel');
-    setImportLoading(true);
-    setImportError('');
-    try {
-      const formData = new FormData();
-      formData.append('file', importFile);
-      const res = await axiosClient.post('/classes/import/preview', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setImportColumns(res.data.headers || []);
-      setImportDataPreview(res.data.dataPreview || []);
-      setImportStep(2);
-      
-      const headers = res.data.headers || [];
-      const codeCol = headers.find(h => h.toLowerCase().includes('mã l?p'));
-      const nameCol = headers.find(h => h.toLowerCase().includes('tên'));
-      const deptCol = headers.find(h => h.toLowerCase().includes('khoa'));
-      const gvCol = headers.find(h => h.toLowerCase().includes('gvcn') || h.toLowerCase().includes('gi?ng viên'));
-      const yearCol = headers.find(h => h.toLowerCase().includes('khóa') || h.toLowerCase().includes('nam'));
-      setImportMapping({
-        class_code: codeCol || headers[0] || '',
-        class_name: nameCol || headers[1] || '',
-        department_code: deptCol || headers[2] || '',
-        lecturer_code: gvCol || headers[3] || '',
-        school_year: yearCol || headers[4] || ''
-      });
-    } catch (err) {
-      setImportError(err.response?.data?.message || 'L?i khi d?c file Excel');
-    } finally {
-      setImportLoading(false);
-    }
-  };
-
-  const handleSubmitImport = async () => {
-    if (!importMapping.class_code || !importMapping.class_name || !importMapping.department_code) {
-      return setImportError('Vui lòng map d?y d? Mã l?p, Tên l?p và Mã khoa');
-    }
-    setImportLoading(true);
-    setImportError('');
-    try {
-      const formData = new FormData();
-      formData.append('file', importFile);
-      formData.append('mapping', JSON.stringify(importMapping));
-      const res = await axiosClient.post('/classes/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setImportResult(res.data);
-      setImportStep(3);
-    } catch (err) {
-      setImportError(err.response?.data?.message || 'L?i khi import d? li?u');
-    } finally {
-      setImportLoading(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={closeImportModal}>
-      <div className="modal modal--large" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">Import L?p t? Excel</h2>
-          <button className="modal-close" onClick={closeImportModal} disabled={importLoading}><IconX /></button>
-        </div>
-        <div className="modal-body">
-          {importStep === 1 && (
-            <>
-              <div className="form-group">
-                <label className="label">Ch?n file Excel *</label>
-                <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
-                <div style={{ marginTop: 12 }}>
-                  <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">
-                    T?i file m?u
-                  </button>
-                </div>
-              </div>
-              {importError && <div className="form-error">{importError}</div>}
-            </>
-          )}
-          {importStep === 2 && (
-            <>
-              <div className="card__subtitle">Ghép c?t d? li?u</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <div className="form-group">
-                  <label className="label">C?t Mã l?p *</label>
-                  <select className="input" value={importMapping.class_code} onChange={(e) => setImportMapping(p => ({ ...p, class_code: e.target.value }))}>
-                    <option value="">-- Ch?n c?t --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="label">C?t Tên l?p *</label>
-                  <select className="input" value={importMapping.class_name} onChange={(e) => setImportMapping(p => ({ ...p, class_name: e.target.value }))}>
-                    <option value="">-- Ch?n c?t --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="label">C?t Mã khoa *</label>
-                  <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
-                    <option value="">-- Ch?n c?t --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="label">C?t Mã GVCN</label>
-                  <select className="input" value={importMapping.lecturer_code} onChange={(e) => setImportMapping(p => ({ ...p, lecturer_code: e.target.value }))}>
-                    <option value="">-- Ch?n c?t (Tùy ch?n) --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="label">Khóa h?c</label>
-                  <select className="input" value={importMapping.school_year} onChange={(e) => setImportMapping(p => ({ ...p, school_year: e.target.value }))}>
-                    <option value="">-- Ch?n c?t (Tùy ch?n) --</option>
-                    {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              {importError && <div className="form-error">{importError}</div>}
-            </>
-          )}
-          {importStep === 3 && importResult && (
-            <>
-              <div className="card__subtitle">K?t qu? import</div>
-              <div>Thêm m?i: {importResult.createdCount || 0}</div>
-              <div>C?p nh?t: {importResult.updatedCount || 0}</div>
-              <div>L?i: {importResult.failedCount || 0}</div>
-              {importResult.errors?.length > 0 && (
-                <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto', background: '#fee2e2', padding: 8, borderRadius: 4 }}>
-                  <ul style={{ margin: 0, paddingLeft: 20 }}>
-                    {importResult.errors.slice(0,10).map((err, i) => (
-                      <li key={i} style={{ color: '#991b1b' }}>Dòng {err.row}: {err.message}</li>
-                    ))}
-                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...và {importResult.errors.length - 10} l?i khác</li>}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        <div className="modal-footer">
-          {importStep > 1 && importStep < 3 && (
-            <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>Quay l?i</button>
-          )}
-          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>Ðóng</button>
-          {importStep === 1 ? (
-            <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
-              {importLoading ? 'Ðang t?i...' : 'Ti?p t?c'}
-            </button>
-          ) : importStep === 2 ? (
-            <button type="button" className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>
-              {importLoading ? 'Ðang import...' : 'Import'}
-            </button>
-          ) : null}
         </div>
       </div>
     </div>
@@ -475,13 +274,59 @@ export default function ClassesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [keyword, setKeyword] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('ALL');
-  const [sortBy, setSortBy] = useState('name-asc');
+
+  // Import state
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState(1);
+  const [importFile, setImportFile] = useState(null);
+  const [importColumns, setImportColumns] = useState([]);
+  const [importPreview, setImportPreview] = useState([]);
+  const [importMapping, setImportMapping] = useState({ class_code: '', class_name: '', department_code: '', lecturer_code: '', school_year: '' });
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+
+  const resetImport = () => {
+    setImportStep(1); setImportFile(null); setImportColumns([]); setImportPreview([]);
+    setImportMapping({ class_code: '', class_name: '', department_code: '', lecturer_code: '', school_year: '' });
+    setImportError(''); setImportResult(null); setImportLoading(false);
+  };
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([{ 'M\u00e3 L\u1edbp': 'CNTT01', 'T\u00ean L\u1edbp': 'CNTT 01', 'M\u00e3 Khoa': 'CNTT', 'M\u00e3 GVCN': 'GV0001', 'Kh\u00f3a h\u1ecdc': '2023-2027' }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'mau_import_lop.xlsx');
+  };
+
+  const handlePreviewImport = async () => {
+    if (!importFile) return setImportError('Vui l\u00f2ng ch\u1ecdn file Excel');
+    setImportLoading(true); setImportError('');
+    try {
+      const fd = new FormData(); fd.append('file', importFile);
+      const res = await axiosClient.post('/classes/import/preview', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const cols = res.data.headers || [];
+      setImportColumns(cols); setImportPreview(res.data.dataPreview || []);
+      const pick = (targets) => cols.find(c => targets.some(t => c.toLowerCase().includes(t))) || '';
+      setImportMapping({ class_code: pick(['m\u00e3 l\u1edbp']), class_name: pick(['t\u00ean']), department_code: pick(['khoa']), lecturer_code: pick(['gvcn', 'gi\u1ea3ng vi\u00ean']), school_year: pick(['kh\u00f3a', 'n\u0103m']) });
+      setImportStep(2);
+    } catch (err) { setImportError(err.response?.data?.message || 'L\u1ed7i khi \u0111\u1ecdc file'); }
+    finally { setImportLoading(false); }
+  };
+
+  const handleSubmitImport = async () => {
+    if (!importMapping.class_code || !importMapping.class_name || !importMapping.department_code) return setImportError('Vui l\u00f2ng map \u0111\u1ea7y \u0111\u1ee7 M\u00e3 l\u1edbp, T\u00ean l\u1edbp v\u00e0 M\u00e3 khoa');
+    setImportLoading(true); setImportError('');
+    try {
+      const fd = new FormData(); fd.append('file', importFile); fd.append('mapping', JSON.stringify(importMapping));
+      const res = await axiosClient.post('/classes/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setImportResult(res.data); await fetchData();
+    } catch (err) { setImportError(err.response?.data?.message || 'L\u1ed7i import'); }
+    finally { setImportLoading(false); }
+  };
 
   const fetchData = async () => {
     try {
@@ -502,7 +347,7 @@ export default function ClassesPage() {
         .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'));
       setTeachers(teacherOptions);
     } catch (err) {
-      setError(err?.response?.data?.message || 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u');
+      setError(err?.response?.data?.message || 'Không thể tải dữ liệu');
       setClasses([]);
       setDepartments([]);
       setTeachers([]);
@@ -530,16 +375,16 @@ export default function ClassesPage() {
       setActionLoading(true);
       if (editingClass) {
         await axiosClient.put(`/classes/${editingClass.id}`, formData);
-        alert('Cáº­p nháº­t lá»›p thÃ nh cÃ´ng');
+        alert('Cập nhật lớp thành công');
       } else {
         await axiosClient.post('/classes', formData);
-        alert('ThÃªm lá»›p thÃ nh cÃ´ng');
+        alert('Thêm lớp thành công');
       }
       setModalOpen(false);
       setEditingClass(null);
       await fetchData();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lá»—i khi lÆ°u lá»›p');
+      alert(err?.response?.data?.message || 'Lỗi khi lưu lớp');
     } finally {
       setActionLoading(false);
     }
@@ -553,11 +398,11 @@ export default function ClassesPage() {
     try {
       setActionLoading(true);
       await axiosClient.delete(`/classes/${confirmDelete.id}`);
-      alert('XÃ³a lá»›p thÃ nh cÃ´ng');
+      alert('Xóa lớp thành công');
       setConfirmDelete(null);
       await fetchData();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lá»—i khi xÃ³a lá»›p');
+      alert(err?.response?.data?.message || 'Lỗi khi xóa lớp');
       setConfirmDelete(null);
     } finally {
       setActionLoading(false);
@@ -568,55 +413,22 @@ export default function ClassesPage() {
     const dept = departments.find((d) => d.id === deptId);
     return dept ? `${dept.department_name} (${dept.department_code})` : '-';
   };
-  const filteredClasses = useMemo(() => {
-    const kw = keyword.toLowerCase();
-    return classes.filter((cls) => {
-      const matchKeyword = !kw
-        || (cls.class_code || '').toLowerCase().includes(kw)
-        || (cls.class_name || '').toLowerCase().includes(kw)
-        || (cls.homeroom_teacher_name || '').toLowerCase().includes(kw)
-        || (cls.school_year || '').toLowerCase().includes(kw);
-      const matchDept = departmentFilter === 'ALL' || String(cls.department_id) === departmentFilter;
-      return matchKeyword && matchDept;
-    });
-  }, [classes, keyword, departmentFilter]);
-
-  const sortedClasses = useMemo(() => {
-    const arr = [...filteredClasses];
-    switch (sortBy) {
-      case 'name-asc':
-        return arr.sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '', 'vi'));
-      case 'name-desc':
-        return arr.sort((a, b) => (b.class_name || '').localeCompare(a.class_name || '', 'vi'));
-      case 'code-asc':
-        return arr.sort((a, b) => (a.class_code || '').localeCompare(b.class_code || '', 'vi'));
-      case 'code-desc':
-        return arr.sort((a, b) => (b.class_code || '').localeCompare(a.class_code || '', 'vi'));
-      case 'newest':
-        return arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      case 'oldest':
-        return arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-      default:
-        return arr;
-    }
-  }, [filteredClasses, sortBy]);
-
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(sortedClasses.length / pageSize)),
-    [sortedClasses.length, pageSize]
+    () => Math.max(1, Math.ceil(classes.length / pageSize)),
+    [classes.length, pageSize]
   );
 
   const paginatedClasses = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return sortedClasses.slice(startIndex, startIndex + pageSize);
-  }, [sortedClasses, currentPage, pageSize]);
+    return classes.slice(startIndex, startIndex + pageSize);
+  }, [classes, currentPage, pageSize]);
 
-  const pageStart = sortedClasses.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const pageEnd = Math.min(currentPage * pageSize, sortedClasses.length);
+  const pageStart = classes.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, classes.length);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [keyword, departmentFilter, sortBy, pageSize]);
+  }, [pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -628,20 +440,25 @@ export default function ClassesPage() {
   return (
     <div className="page-wrapper">
       <PageHeader
-        title="Quáº£n lÃ½ lá»›p há»c"
-        subtitle="ThÃªm, chá»‰nh sá»­a, xÃ³a lá»›p há»c"
+        title="Quản lý lớp học"
+        subtitle="Thêm, chỉnh sửa, xóa lớp học"
         actions={
           <>
-            <button className="btn btn-secondary" onClick={() => setImportModalOpen(true)} disabled={loading}>
+            <button className="btn btn-secondary" onClick={() => { resetImport(); setImportOpen(true); }}>
               <IconUpload />
-              Import L?p
-            </button><button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
+              Import Excel
+            </button>
+            <button className="btn btn-secondary" onClick={handleDownloadTemplate}>
+              <IconDownload />
+              T\u1ea3i file m\u1eabu
+            </button>
+            <button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
               <IconRefresh />
-              LÃ m má»›i
+              L\u00e0m m\u1edbi
             </button>
             <button className="btn btn-primary" onClick={handleAddClass}>
               <IconPlus />
-              ThÃªm lá»›p
+              Th\u00eam l\u1edbp
             </button>
           </>
         }
@@ -650,82 +467,39 @@ export default function ClassesPage() {
       <div className="card">
         <div className="section-toolbar">
           <div>
-            <div className="card__title">Danh sÃ¡ch lá»›p há»c</div>
-            <div className="card__subtitle">TÃ¬m theo mÃ£ lá»›p, tÃªn lá»›p, GV chá»§ nhiá»‡m</div>
+            <div className="card__title">Danh sách lớp học</div>
+            <div className="card__subtitle">Tất cả các lớp đang quản lý trong hệ thống</div>
           </div>
           <div className="section-toolbar__meta">
-            {loading ? '...' : `Äang hiá»ƒn thá»‹ ${sortedClasses.length}/${classes.length} lá»›p`}
+            {loading ? '...' : `${classes.length} lớp`}
           </div>
-        </div>
-
-        <div className="filter-bar filter-bar--flex">
-          <div className="filter-bar__search">
-            <span className="filter-bar__search-icon">
-              <IconSearch />
-            </span>
-            <input
-              className="input"
-              type="text"
-              placeholder="TÃ¬m theo mÃ£ lá»›p, tÃªn lá»›p, GV chá»§ nhiá»‡m..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
-          </div>
-
-          <select
-            className="select"
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-          >
-            <option value="ALL">Táº¥t cáº£ khoa</option>
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.id}>{dept.department_name}</option>
-            ))}
-          </select>
-
-          <select
-            className="select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="name-asc">TÃªn lá»›p A â†’ Z</option>
-            <option value="name-desc">TÃªn lá»›p Z â†’ A</option>
-            <option value="code-asc">MÃ£ lá»›p A â†’ Z</option>
-            <option value="code-desc">MÃ£ lá»›p Z â†’ A</option>
-            <option value="newest">Má»›i nháº¥t</option>
-            <option value="oldest">CÅ© nháº¥t</option>
-          </select>
-
-          <button className="btn btn-secondary" onClick={() => { setKeyword(''); setDepartmentFilter('ALL'); setSortBy('name-asc'); }}>
-            XÃ³a bá»™ lá»c
-          </button>
         </div>
 
         {loading ? (
           <div className="loading loading--flex">
             <div className="loading__spinner" />
-            Äang táº£i danh sÃ¡ch lá»›p há»c...
+            Đang tải danh sách lớp học...
           </div>
         ) : error ? (
           <EmptyPanel
             icon={<IconAlert />}
-            title="KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u"
+            title="Không thể tải dữ liệu"
             description={error}
             actions={
               <button className="btn btn-primary" onClick={fetchData}>
-                Thá»­ láº¡i
+                Thử lại
               </button>
             }
           />
         ) : classes.length === 0 ? (
           <EmptyPanel
             icon={<IconUsers />}
-            title="ChÆ°a cÃ³ lá»›p nÃ o"
-            description="HÃ£y thÃªm lá»›p má»›i Ä‘á»ƒ báº¯t Ä‘áº§u quáº£n lÃ½."
+            title="Chưa có lớp nào"
+            description="Hãy thêm lớp mới để bắt đầu quản lý."
             actions={
               <button className="btn btn-primary" onClick={handleAddClass}>
                 <IconPlus />
-                ThÃªm lá»›p
+                Thêm lớp
               </button>
             }
           />
@@ -734,13 +508,13 @@ export default function ClassesPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>MÃ£ lá»›p</th>
-                  <th>TÃªn lá»›p</th>
+                  <th>Mã lớp</th>
+                  <th>Tên lớp</th>
                   <th>Khoa</th>
-                  <th>NÄƒm há»c</th>
-                  <th>GV chá»§ nhiá»‡m</th>
-                  <th>NgÃ y táº¡o</th>
-                  <th>HÃ nh Ä‘á»™ng</th>
+                  <th>Năm học</th>
+                  <th>GV chủ nhiệm</th>
+                  <th>Ngày tạo</th>
+                  <th>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -763,14 +537,14 @@ export default function ClassesPage() {
                         <button
                           className="btn btn-sm btn-secondary"
                           onClick={() => handleEditClass(cls)}
-                          title="Chá»‰nh sá»­a"
+                          title="Chỉnh sửa"
                         >
                           <IconEdit />
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleConfirmDelete(cls)}
-                          title="XÃ³a"
+                          title="Xóa"
                         >
                           <IconTrash />
                         </button>
@@ -781,15 +555,15 @@ export default function ClassesPage() {
               </tbody>
             </table>
 
-            {sortedClasses.length > 0 ? (
+            {classes.length > 0 ? (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={sortedClasses.length}
+                totalItems={classes.length}
                 pageStart={pageStart}
                 pageEnd={pageEnd}
-                itemName="lá»›p"
+                itemName="lớp"
               />
             ) : null}
           </div>
@@ -797,13 +571,6 @@ export default function ClassesPage() {
       </div>
 
       {/* Modals */}
-      <ImportModal
-        isOpen={importModalOpen}
-        onClose={() => {
-          setImportModalOpen(false);
-          fetchClasses();
-        }}
-      />
       <ClassModal
         isOpen={modalOpen}
         classItem={editingClass}
@@ -824,8 +591,81 @@ export default function ClassesPage() {
         onCancel={() => setConfirmDelete(null)}
         loading={actionLoading}
       />
+
+      {importOpen && (
+        <div className="modal-overlay" onClick={() => setImportOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Import L\u1edbp t\u1eeb Excel</h2>
+              <button className="modal-close" onClick={() => setImportOpen(false)}>X</button>
+            </div>
+            <div className="modal-body">
+              {importStep === 1 ? (
+                <>
+                  <div className="form-group">
+                    <label className="label">Ch\u1ecdn file Excel *</label>
+                    <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+                    <div className="form-hint" style={{ marginTop: 8 }}>Ch\u1ec9 ch\u1ea5p nh\u1eadn file .xlsx, .xls</div>
+                    <div style={{ marginTop: 12 }}>
+                      <button className="btn btn-secondary btn-sm" onClick={handleDownloadTemplate} type="button">T\u1ea3i file m\u1eabu</button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {importPreview.length > 0 && (
+                    <div className="card" style={{ padding: 12, marginBottom: 16 }}>
+                      <div className="card__subtitle">Xem tr\u01b0\u1edbc d\u1eef li\u1ec7u</div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="table"><thead><tr>{importColumns.map(c => <th key={c}>{c}</th>)}</tr></thead>
+                          <tbody>{importPreview.map((row, i) => <tr key={i}>{importColumns.map((c, j) => <td key={j}>{row[j]}</td>)}</tr>)}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <div className="card" style={{ padding: 12 }}>
+                    <div className="card__subtitle">Gh\u00e9p c\u1ed9t d\u1eef li\u1ec7u</div>
+                    {[['class_code','M\u00e3 l\u1edbp *'],['class_name','T\u00ean l\u1edbp *'],['department_code','M\u00e3 khoa *'],['lecturer_code','M\u00e3 GVCN'],['school_year','Kh\u00f3a h\u1ecdc']].map(([key, label]) => (
+                      <div className="form-group" key={key}>
+                        <label className="label">{label}</label>
+                        <select className="input" value={importMapping[key]} onChange={(e) => setImportMapping(p => ({ ...p, [key]: e.target.value }))}>
+                          <option value="">{label.includes('*') ? '-- Ch\u1ecdn c\u1ed9t --' : '-- Kh\u00f4ng d\u00f9ng --'}</option>
+                          {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {importError && <div className="form-error" style={{ marginTop: 12 }}>{importError}</div>}
+              {importResult && (
+                <div className="card" style={{ marginTop: 12, padding: 12 }}>
+                  <div className="card__subtitle">K\u1ebft qu\u1ea3 import</div>
+                  <div>Th\u00eam m\u1edbi: {importResult.createdCount || 0}</div>
+                  <div>C\u1eadp nh\u1eadt: {importResult.updatedCount || 0}</div>
+                  <div>L\u1ed7i: {importResult.failedCount || 0}</div>
+                  {importResult.errors?.length > 0 && (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13 }}>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {importResult.errors.slice(0, 10).map((err, i) => <li key={i} style={{ color: '#991b1b' }}>D\u00f2ng {err.row}: {err.message}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              {importStep > 1 && <button className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>\u2190 Quay l\u1ea1i</button>}
+              <button className="btn btn-secondary" onClick={() => setImportOpen(false)} disabled={importLoading}>H\u1ee7y</button>
+              {importStep === 1 ? (
+                <button className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>{importLoading ? '\u0110ang x\u1eed l\u00fd...' : 'Ti\u1ebfp t\u1ee5c'}</button>
+              ) : (
+                <button className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>{importLoading ? '\u0110ang import...' : 'Import'}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
