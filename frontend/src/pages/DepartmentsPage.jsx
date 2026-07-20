@@ -1,4 +1,4 @@
-import Pagination from "../components/Pagination";
+﻿import Pagination from "../components/Pagination";
 import { useEffect, useMemo, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
@@ -83,8 +83,8 @@ function DepartmentModal({ isOpen, department, onClose, onSave, loading }) {
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.department_code.trim()) newErrors.department_code = 'Mã khoa không được bỏ trống';
-    if (!formData.department_name.trim()) newErrors.department_name = 'Tên khoa không được bỏ trống';
+    if (!formData.department_code.trim()) newErrors.department_code = 'MÃ£ khoa khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
+    if (!formData.department_name.trim()) newErrors.department_name = 'TÃªn khoa khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -102,7 +102,7 @@ function DepartmentModal({ isOpen, department, onClose, onSave, loading }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
-            {department ? `Chỉnh sửa khoa: ${department.department_name}` : 'Thêm khoa mới'}
+            {department ? `Chá»‰nh sá»­a khoa: ${department.department_name}` : 'ThÃªm khoa má»›i'}
           </h2>
           <button className="modal-close" onClick={onClose}>
             <IconX />
@@ -111,7 +111,7 @@ function DepartmentModal({ isOpen, department, onClose, onSave, loading }) {
 
         <form onSubmit={handleSubmit} className="modal-body">
           <div className="form-group">
-            <label className="label">Mã khoa</label>
+            <label className="label">MÃ£ khoa</label>
             <input
               type="text"
               className={`input ${errors.department_code ? 'input--error' : ''}`}
@@ -124,34 +124,34 @@ function DepartmentModal({ isOpen, department, onClose, onSave, loading }) {
           </div>
 
           <div className="form-group">
-            <label className="label">Tên khoa</label>
+            <label className="label">TÃªn khoa</label>
             <input
               type="text"
               className={`input ${errors.department_name ? 'input--error' : ''}`}
               value={formData.department_name}
               onChange={(e) => setFormData({ ...formData, department_name: e.target.value })}
-              placeholder="e.g., Công nghệ thông tin"
+              placeholder="e.g., CÃ´ng nghá»‡ thÃ´ng tin"
             />
             {errors.department_name && <div className="form-error">{errors.department_name}</div>}
           </div>
 
           <div className="form-group">
-            <label className="label">Mô tả</label>
+            <label className="label">MÃ´ táº£</label>
             <textarea
               className="input"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Mô tả chi tiết về khoa"
+              placeholder="MÃ´ táº£ chi tiáº¿t vá» khoa"
               rows="3"
             />
           </div>
 
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Hủy
+              Há»§y
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Đang lưu...' : 'Lưu'}
+              {loading ? 'Äang lÆ°u...' : 'LÆ°u'}
             </button>
           </div>
         </form>
@@ -168,7 +168,7 @@ function ConfirmDeleteModal({ isOpen, departmentName, onConfirm, onCancel, loadi
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal modal--small" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">Xác nhận xóa</h2>
+          <h2 className="modal-title">XÃ¡c nháº­n xÃ³a</h2>
           <button className="modal-close" onClick={onCancel}>
             <IconX />
           </button>
@@ -179,19 +179,19 @@ function ConfirmDeleteModal({ isOpen, departmentName, onConfirm, onCancel, loadi
             <div className="empty-state__icon" style={{ color: 'var(--red-500)' }}>
               <IconAlert />
             </div>
-            <div className="empty-state__title">Xóa khoa: {departmentName}?</div>
+            <div className="empty-state__title">XÃ³a khoa: {departmentName}?</div>
             <div className="empty-state__desc">
-              Hành động này không thể hoàn tác. Tất cả lớp, sinh viên và tài liệu liên quan cũng sẽ bị xóa.
+              HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c. Táº¥t cáº£ lá»›p, sinh viÃªn vÃ  tÃ i liá»‡u liÃªn quan cÅ©ng sáº½ bá»‹ xÃ³a.
             </div>
           </div>
         </div>
 
         <div className="modal-footer">
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            Hủy
+            Há»§y
           </button>
           <button type="button" className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Đang xóa...' : 'Xóa'}
+            {loading ? 'Äang xÃ³a...' : 'XÃ³a'}
           </button>
         </div>
       </div>
@@ -236,9 +236,9 @@ function ImportModal({ isOpen, onClose }) {
 
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([{
-      'M� Khoa': 'CNTT',
-      'T�n Khoa': 'C�ng ngh? th�ng tin',
-      'M� t?': 'Khoa C�ng ngh? th�ng tin'
+      'Mã Khoa': 'CNTT',
+      'Tên Khoa': 'Công ngh? thông tin',
+      'Mô t?': 'Khoa Công ngh? thông tin'
     }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
@@ -246,7 +246,7 @@ function ImportModal({ isOpen, onClose }) {
   };
 
   const handlePreviewImport = async () => {
-    if (!importFile) return setImportError('Vui l�ng ch?n file Excel');
+    if (!importFile) return setImportError('Vui lòng ch?n file Excel');
     setImportLoading(true);
     setImportError('');
     try {
@@ -260,9 +260,9 @@ function ImportModal({ isOpen, onClose }) {
       setImportStep(2);
       
       const headers = res.data.headers || [];
-      const codeCol = headers.find(h => h.toLowerCase().includes('m�'));
-      const nameCol = headers.find(h => h.toLowerCase().includes('t�n'));
-      const descCol = headers.find(h => h.toLowerCase().includes('m� t?'));
+      const codeCol = headers.find(h => h.toLowerCase().includes('mã'));
+      const nameCol = headers.find(h => h.toLowerCase().includes('tên'));
+      const descCol = headers.find(h => h.toLowerCase().includes('mô t?'));
       setImportMapping({
         department_code: codeCol || headers[0] || '',
         department_name: nameCol || headers[1] || '',
@@ -277,7 +277,7 @@ function ImportModal({ isOpen, onClose }) {
 
   const handleSubmitImport = async () => {
     if (!importMapping.department_code || !importMapping.department_name) {
-      return setImportError('Vui l�ng map d?y d? M� khoa v� T�n khoa');
+      return setImportError('Vui lòng map d?y d? Mã khoa và Tên khoa');
     }
     setImportLoading(true);
     setImportError('');
@@ -321,26 +321,26 @@ function ImportModal({ isOpen, onClose }) {
           )}
           {importStep === 2 && (
             <>
-              <div className="card__subtitle">Gh�p c?t d? li?u</div>
+              <div className="card__subtitle">Ghép c?t d? li?u</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div className="form-group">
-                  <label className="label">C?t M� khoa *</label>
+                  <label className="label">C?t Mã khoa *</label>
                   <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
                     <option value="">-- Ch?n c?t --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="label">C?t T�n khoa *</label>
+                  <label className="label">C?t Tên khoa *</label>
                   <select className="input" value={importMapping.department_name} onChange={(e) => setImportMapping(p => ({ ...p, department_name: e.target.value }))}>
                     <option value="">-- Ch?n c?t --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="label">C?t M� t?</label>
+                  <label className="label">C?t Mô t?</label>
                   <select className="input" value={importMapping.description} onChange={(e) => setImportMapping(p => ({ ...p, description: e.target.value }))}>
-                    <option value="">-- Ch?n c?t (T�y ch?n) --</option>
+                    <option value="">-- Ch?n c?t (Tùy ch?n) --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -351,16 +351,16 @@ function ImportModal({ isOpen, onClose }) {
           {importStep === 3 && importResult && (
             <>
               <div className="card__subtitle">K?t qu? import</div>
-              <div>Th�m m?i: {importResult.createdCount || 0}</div>
+              <div>Thêm m?i: {importResult.createdCount || 0}</div>
               <div>C?p nh?t: {importResult.updatedCount || 0}</div>
               <div>L?i: {importResult.failedCount || 0}</div>
               {importResult.errors?.length > 0 && (
                 <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto', background: '#fee2e2', padding: 8, borderRadius: 4 }}>
                   <ul style={{ margin: 0, paddingLeft: 20 }}>
                     {importResult.errors.slice(0,10).map((err, i) => (
-                      <li key={i} style={{ color: '#991b1b' }}>D�ng {err.row}: {err.message}</li>
+                      <li key={i} style={{ color: '#991b1b' }}>Dòng {err.row}: {err.message}</li>
                     ))}
-                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...v� {importResult.errors.length - 10} l?i kh�c</li>}
+                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...và {importResult.errors.length - 10} l?i khác</li>}
                   </ul>
                 </div>
               )}
@@ -371,14 +371,14 @@ function ImportModal({ isOpen, onClose }) {
           {importStep > 1 && importStep < 3 && (
             <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>Quay l?i</button>
           )}
-          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>��ng</button>
+          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>Ðóng</button>
           {importStep === 1 ? (
             <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
-              {importLoading ? '�ang t?i...' : 'Ti?p t?c'}
+              {importLoading ? 'Ðang t?i...' : 'Ti?p t?c'}
             </button>
           ) : importStep === 2 ? (
             <button type="button" className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>
-              {importLoading ? '�ang import...' : 'Import'}
+              {importLoading ? 'Ðang import...' : 'Import'}
             </button>
           ) : null}
         </div>
@@ -406,7 +406,7 @@ export default function DepartmentsPage() {
       const res = await axiosClient.get('/departments');
       setDepartments(Array.isArray(res.data) ? res.data : res.data?.data || []);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Không thể tải danh sách khoa');
+      setError(err?.response?.data?.message || 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch khoa');
       setDepartments([]);
     } finally {
       setLoading(false);
@@ -432,16 +432,16 @@ export default function DepartmentsPage() {
       setActionLoading(true);
       if (editingDept) {
         await axiosClient.put(`/departments/${editingDept.id}`, formData);
-        alert('Cập nhật khoa thành công');
+        alert('Cáº­p nháº­t khoa thÃ nh cÃ´ng');
       } else {
         await axiosClient.post('/departments', formData);
-        alert('Thêm khoa thành công');
+        alert('ThÃªm khoa thÃ nh cÃ´ng');
       }
       setModalOpen(false);
       setEditingDept(null);
       await fetchDepartments();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lỗi khi lưu khoa');
+      alert(err?.response?.data?.message || 'Lá»—i khi lÆ°u khoa');
     } finally {
       setActionLoading(false);
     }
@@ -455,11 +455,11 @@ export default function DepartmentsPage() {
     try {
       setActionLoading(true);
       await axiosClient.delete(`/departments/${confirmDelete.id}`);
-      alert('Xóa khoa thành công');
+      alert('XÃ³a khoa thÃ nh cÃ´ng');
       setConfirmDelete(null);
       await fetchDepartments();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lỗi khi xóa khoa');
+      alert(err?.response?.data?.message || 'Lá»—i khi xÃ³a khoa');
       setConfirmDelete(null);
     } finally {
       setActionLoading(false);
@@ -492,8 +492,8 @@ export default function DepartmentsPage() {
   return (
     <div className="page-wrapper">
       <PageHeader
-        title="Quản lý khoa"
-        subtitle="Thêm, chỉnh sửa, xóa khoa học"
+        title="Quáº£n lÃ½ khoa"
+        subtitle="ThÃªm, chá»‰nh sá»­a, xÃ³a khoa há»c"
         actions={
           <>
             <button className="btn btn-secondary" onClick={() => setImportModalOpen(true)} disabled={loading}>
@@ -505,14 +505,14 @@ export default function DepartmentsPage() {
               disabled={loading}
             >
               <IconRefresh />
-              Làm mới
+              LÃ m má»›i
             </button>
             <button
               className="btn btn-primary"
               onClick={handleAddDept}
             >
               <IconPlus />
-              Thêm khoa
+              ThÃªm khoa
             </button>
           </>
         }
@@ -521,8 +521,8 @@ export default function DepartmentsPage() {
       <div className="card">
         <div className="section-toolbar">
           <div>
-            <div className="card__title">Danh sách khoa</div>
-            <div className="card__subtitle">Tất cả các khoa đang quản lý trong hệ thống</div>
+            <div className="card__title">Danh sÃ¡ch khoa</div>
+            <div className="card__subtitle">Táº¥t cáº£ cÃ¡c khoa Ä‘ang quáº£n lÃ½ trong há»‡ thá»‘ng</div>
           </div>
           <div className="section-toolbar__meta">
             {loading ? '...' : `${departments.length} khoa`}
@@ -532,28 +532,28 @@ export default function DepartmentsPage() {
         {loading ? (
           <div className="loading loading--flex">
             <div className="loading__spinner" />
-            Đang tải danh sách khoa...
+            Äang táº£i danh sÃ¡ch khoa...
           </div>
         ) : error ? (
           <EmptyPanel
             icon={<IconAlert />}
-            title="Không thể tải dữ liệu"
+            title="KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u"
             description={error}
             actions={
               <button className="btn btn-primary" onClick={fetchDepartments}>
-                Thử lại
+                Thá»­ láº¡i
               </button>
             }
           />
         ) : departments.length === 0 ? (
           <EmptyPanel
             icon={<IconBuilding />}
-            title="Chưa có khoa nào"
-            description="Hãy thêm khoa mới để bắt đầu quản lý."
+            title="ChÆ°a cÃ³ khoa nÃ o"
+            description="HÃ£y thÃªm khoa má»›i Ä‘á»ƒ báº¯t Ä‘áº§u quáº£n lÃ½."
             actions={
               <button className="btn btn-primary" onClick={handleAddDept}>
                 <IconPlus />
-                Thêm khoa
+                ThÃªm khoa
               </button>
             }
           />
@@ -562,11 +562,11 @@ export default function DepartmentsPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Mã khoa</th>
-                  <th>Tên khoa</th>
-                  <th>Mô tả</th>
-                  <th>Ngày tạo</th>
-                  <th>Hành động</th>
+                  <th>MÃ£ khoa</th>
+                  <th>TÃªn khoa</th>
+                  <th>MÃ´ táº£</th>
+                  <th>NgÃ y táº¡o</th>
+                  <th>HÃ nh Ä‘á»™ng</th>
                 </tr>
               </thead>
               <tbody>
@@ -591,14 +591,14 @@ export default function DepartmentsPage() {
                         <button
                           className="btn btn-sm btn-secondary"
                           onClick={() => handleEditDept(dept)}
-                          title="Chỉnh sửa"
+                          title="Chá»‰nh sá»­a"
                         >
                           <IconEdit />
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleConfirmDelete(dept)}
-                          title="Xóa"
+                          title="XÃ³a"
                         >
                           <IconTrash />
                         </button>

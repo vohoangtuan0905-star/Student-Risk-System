@@ -1,4 +1,4 @@
-import Pagination from "../components/Pagination";
+﻿import Pagination from "../components/Pagination";
 import { useMemo, useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
@@ -98,10 +98,10 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.class_code.trim()) newErrors.class_code = 'Mã lớp không được bỏ trống';
-    if (!formData.class_name.trim()) newErrors.class_name = 'Tên lớp không được bỏ trống';
-    if (!formData.department_id) newErrors.department_id = 'Vui lòng chọn khoa';
-    if (!formData.school_year.trim()) newErrors.school_year = 'Năm học không được bỏ trống';
+    if (!formData.class_code.trim()) newErrors.class_code = 'MÃ£ lá»›p khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
+    if (!formData.class_name.trim()) newErrors.class_name = 'TÃªn lá»›p khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
+    if (!formData.department_id) newErrors.department_id = 'Vui lÃ²ng chá»n khoa';
+    if (!formData.school_year.trim()) newErrors.school_year = 'NÄƒm há»c khÃ´ng Ä‘Æ°á»£c bá» trá»‘ng';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -119,7 +119,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
-            {classItem ? `Chỉnh sửa lớp: ${classItem.class_name}` : 'Thêm lớp mới'}
+            {classItem ? `Chá»‰nh sá»­a lá»›p: ${classItem.class_name}` : 'ThÃªm lá»›p má»›i'}
           </h2>
           <button className="modal-close" onClick={onClose}>
             <IconX />
@@ -128,7 +128,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
         <form onSubmit={handleSubmit} className="modal-body">
           <div className="form-group">
-            <label className="label">Mã lớp</label>
+            <label className="label">MÃ£ lá»›p</label>
             <input
               type="text"
               className={`input ${errors.class_code ? 'input--error' : ''}`}
@@ -141,7 +141,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
           </div>
 
           <div className="form-group">
-            <label className="label">Tên lớp</label>
+            <label className="label">TÃªn lá»›p</label>
             <input
               type="text"
               className={`input ${errors.class_name ? 'input--error' : ''}`}
@@ -159,7 +159,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
               value={formData.department_id}
               onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
             >
-              <option value="">-- Chọn khoa --</option>
+              <option value="">-- Chá»n khoa --</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>
                   {dept.department_name} ({dept.department_code})
@@ -170,7 +170,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
           </div>
 
           <div className="form-group">
-            <label className="label">Năm học</label>
+            <label className="label">NÄƒm há»c</label>
             <input
               type="text"
               className={`input ${errors.school_year ? 'input--error' : ''}`}
@@ -182,13 +182,13 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
           </div>
 
           <div className="form-group">
-            <label className="label">GV chủ nhiệm (tùy chọn)</label>
+            <label className="label">GV chá»§ nhiá»‡m (tÃ¹y chá»n)</label>
             <select
               className="input"
               value={formData.homeroom_teacher_id || ''}
               onChange={(e) => setFormData({ ...formData, homeroom_teacher_id: e.target.value ? Number(e.target.value) : '' })}
             >
-              <option value="">-- Không gán chủ nhiệm --</option>
+              <option value="">-- KhÃ´ng gÃ¡n chá»§ nhiá»‡m --</option>
               {teachers.map((teacher) => {
                 const classCount = Number(teacher.homeroom_class_count || 0);
                 const isCurrentHomeroom = Number(classItem?.homeroom_teacher_id) === Number(teacher.id);
@@ -196,7 +196,7 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
                 return (
                   <option key={teacher.id} value={teacher.id} disabled={reachedLimit}>
-                    {teacher.full_name} ({teacher.email}) - {classCount}/2 lớp{reachedLimit ? ' - Đã đủ' : ''}
+                    {teacher.full_name} ({teacher.email}) - {classCount}/2 lá»›p{reachedLimit ? ' - ÄÃ£ Ä‘á»§' : ''}
                   </option>
                 );
               })}
@@ -205,10 +205,10 @@ function ClassModal({ isOpen, classItem, departments, teachers, onClose, onSave,
 
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Hủy
+              Há»§y
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Đang lưu...' : 'Lưu'}
+              {loading ? 'Äang lÆ°u...' : 'LÆ°u'}
             </button>
           </div>
         </form>
@@ -225,7 +225,7 @@ function ConfirmDeleteModal({ isOpen, className, onConfirm, onCancel, loading })
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal modal--small" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">Xác nhận xóa</h2>
+          <h2 className="modal-title">XÃ¡c nháº­n xÃ³a</h2>
           <button className="modal-close" onClick={onCancel}>
             <IconX />
           </button>
@@ -236,19 +236,19 @@ function ConfirmDeleteModal({ isOpen, className, onConfirm, onCancel, loading })
             <div className="empty-state__icon" style={{ color: 'var(--red-500)' }}>
               <IconAlert />
             </div>
-            <div className="empty-state__title">Xóa lớp: {className}?</div>
+            <div className="empty-state__title">XÃ³a lá»›p: {className}?</div>
             <div className="empty-state__desc">
-              Hành động này không thể hoàn tác. Tất cả sinh viên và bản ghi học tập cũng sẽ bị xóa.
+              HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c. Táº¥t cáº£ sinh viÃªn vÃ  báº£n ghi há»c táº­p cÅ©ng sáº½ bá»‹ xÃ³a.
             </div>
           </div>
         </div>
 
         <div className="modal-footer">
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            Hủy
+            Há»§y
           </button>
           <button type="button" className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Đang xóa...' : 'Xóa'}
+            {loading ? 'Äang xÃ³a...' : 'XÃ³a'}
           </button>
         </div>
       </div>
@@ -295,11 +295,11 @@ function ImportModal({ isOpen, onClose }) {
 
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([{
-      'M� L?p': 'CNTT01',
-      'T�n L?p': 'C�ng ngh? th�ng tin 01',
-      'M� Khoa': 'CNTT',
-      'M� GVCN': 'GV0001',
-      'Kh�a h?c': '2023-2027'
+      'Mã L?p': 'CNTT01',
+      'Tên L?p': 'Công ngh? thông tin 01',
+      'Mã Khoa': 'CNTT',
+      'Mã GVCN': 'GV0001',
+      'Khóa h?c': '2023-2027'
     }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
@@ -307,7 +307,7 @@ function ImportModal({ isOpen, onClose }) {
   };
 
   const handlePreviewImport = async () => {
-    if (!importFile) return setImportError('Vui l�ng ch?n file Excel');
+    if (!importFile) return setImportError('Vui lòng ch?n file Excel');
     setImportLoading(true);
     setImportError('');
     try {
@@ -321,11 +321,11 @@ function ImportModal({ isOpen, onClose }) {
       setImportStep(2);
       
       const headers = res.data.headers || [];
-      const codeCol = headers.find(h => h.toLowerCase().includes('m� l?p'));
-      const nameCol = headers.find(h => h.toLowerCase().includes('t�n'));
+      const codeCol = headers.find(h => h.toLowerCase().includes('mã l?p'));
+      const nameCol = headers.find(h => h.toLowerCase().includes('tên'));
       const deptCol = headers.find(h => h.toLowerCase().includes('khoa'));
-      const gvCol = headers.find(h => h.toLowerCase().includes('gvcn') || h.toLowerCase().includes('gi?ng vi�n'));
-      const yearCol = headers.find(h => h.toLowerCase().includes('kh�a') || h.toLowerCase().includes('nam'));
+      const gvCol = headers.find(h => h.toLowerCase().includes('gvcn') || h.toLowerCase().includes('gi?ng viên'));
+      const yearCol = headers.find(h => h.toLowerCase().includes('khóa') || h.toLowerCase().includes('nam'));
       setImportMapping({
         class_code: codeCol || headers[0] || '',
         class_name: nameCol || headers[1] || '',
@@ -342,7 +342,7 @@ function ImportModal({ isOpen, onClose }) {
 
   const handleSubmitImport = async () => {
     if (!importMapping.class_code || !importMapping.class_name || !importMapping.department_code) {
-      return setImportError('Vui l�ng map d?y d? M� l?p, T�n l?p v� M� khoa');
+      return setImportError('Vui lòng map d?y d? Mã l?p, Tên l?p và Mã khoa');
     }
     setImportLoading(true);
     setImportError('');
@@ -386,40 +386,40 @@ function ImportModal({ isOpen, onClose }) {
           )}
           {importStep === 2 && (
             <>
-              <div className="card__subtitle">Gh�p c?t d? li?u</div>
+              <div className="card__subtitle">Ghép c?t d? li?u</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div className="form-group">
-                  <label className="label">C?t M� l?p *</label>
+                  <label className="label">C?t Mã l?p *</label>
                   <select className="input" value={importMapping.class_code} onChange={(e) => setImportMapping(p => ({ ...p, class_code: e.target.value }))}>
                     <option value="">-- Ch?n c?t --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="label">C?t T�n l?p *</label>
+                  <label className="label">C?t Tên l?p *</label>
                   <select className="input" value={importMapping.class_name} onChange={(e) => setImportMapping(p => ({ ...p, class_name: e.target.value }))}>
                     <option value="">-- Ch?n c?t --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="label">C?t M� khoa *</label>
+                  <label className="label">C?t Mã khoa *</label>
                   <select className="input" value={importMapping.department_code} onChange={(e) => setImportMapping(p => ({ ...p, department_code: e.target.value }))}>
                     <option value="">-- Ch?n c?t --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="label">C?t M� GVCN</label>
+                  <label className="label">C?t Mã GVCN</label>
                   <select className="input" value={importMapping.lecturer_code} onChange={(e) => setImportMapping(p => ({ ...p, lecturer_code: e.target.value }))}>
-                    <option value="">-- Ch?n c?t (T�y ch?n) --</option>
+                    <option value="">-- Ch?n c?t (Tùy ch?n) --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="label">Kh�a h?c</label>
+                  <label className="label">Khóa h?c</label>
                   <select className="input" value={importMapping.school_year} onChange={(e) => setImportMapping(p => ({ ...p, school_year: e.target.value }))}>
-                    <option value="">-- Ch?n c?t (T�y ch?n) --</option>
+                    <option value="">-- Ch?n c?t (Tùy ch?n) --</option>
                     {importColumns.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -430,16 +430,16 @@ function ImportModal({ isOpen, onClose }) {
           {importStep === 3 && importResult && (
             <>
               <div className="card__subtitle">K?t qu? import</div>
-              <div>Th�m m?i: {importResult.createdCount || 0}</div>
+              <div>Thêm m?i: {importResult.createdCount || 0}</div>
               <div>C?p nh?t: {importResult.updatedCount || 0}</div>
               <div>L?i: {importResult.failedCount || 0}</div>
               {importResult.errors?.length > 0 && (
                 <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto', background: '#fee2e2', padding: 8, borderRadius: 4 }}>
                   <ul style={{ margin: 0, paddingLeft: 20 }}>
                     {importResult.errors.slice(0,10).map((err, i) => (
-                      <li key={i} style={{ color: '#991b1b' }}>D�ng {err.row}: {err.message}</li>
+                      <li key={i} style={{ color: '#991b1b' }}>Dòng {err.row}: {err.message}</li>
                     ))}
-                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...v� {importResult.errors.length - 10} l?i kh�c</li>}
+                    {importResult.errors.length > 10 && <li style={{ color: '#991b1b', fontStyle: 'italic' }}>...và {importResult.errors.length - 10} l?i khác</li>}
                   </ul>
                 </div>
               )}
@@ -450,14 +450,14 @@ function ImportModal({ isOpen, onClose }) {
           {importStep > 1 && importStep < 3 && (
             <button type="button" className="btn btn-secondary" onClick={() => setImportStep(1)} disabled={importLoading}>Quay l?i</button>
           )}
-          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>��ng</button>
+          <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importLoading}>Ðóng</button>
           {importStep === 1 ? (
             <button type="button" className="btn btn-primary" onClick={handlePreviewImport} disabled={importLoading}>
-              {importLoading ? '�ang t?i...' : 'Ti?p t?c'}
+              {importLoading ? 'Ðang t?i...' : 'Ti?p t?c'}
             </button>
           ) : importStep === 2 ? (
             <button type="button" className="btn btn-primary" onClick={handleSubmitImport} disabled={importLoading}>
-              {importLoading ? '�ang import...' : 'Import'}
+              {importLoading ? 'Ðang import...' : 'Import'}
             </button>
           ) : null}
         </div>
@@ -502,7 +502,7 @@ export default function ClassesPage() {
         .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'));
       setTeachers(teacherOptions);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Không thể tải dữ liệu');
+      setError(err?.response?.data?.message || 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u');
       setClasses([]);
       setDepartments([]);
       setTeachers([]);
@@ -530,16 +530,16 @@ export default function ClassesPage() {
       setActionLoading(true);
       if (editingClass) {
         await axiosClient.put(`/classes/${editingClass.id}`, formData);
-        alert('Cập nhật lớp thành công');
+        alert('Cáº­p nháº­t lá»›p thÃ nh cÃ´ng');
       } else {
         await axiosClient.post('/classes', formData);
-        alert('Thêm lớp thành công');
+        alert('ThÃªm lá»›p thÃ nh cÃ´ng');
       }
       setModalOpen(false);
       setEditingClass(null);
       await fetchData();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lỗi khi lưu lớp');
+      alert(err?.response?.data?.message || 'Lá»—i khi lÆ°u lá»›p');
     } finally {
       setActionLoading(false);
     }
@@ -553,11 +553,11 @@ export default function ClassesPage() {
     try {
       setActionLoading(true);
       await axiosClient.delete(`/classes/${confirmDelete.id}`);
-      alert('Xóa lớp thành công');
+      alert('XÃ³a lá»›p thÃ nh cÃ´ng');
       setConfirmDelete(null);
       await fetchData();
     } catch (err) {
-      alert(err?.response?.data?.message || 'Lỗi khi xóa lớp');
+      alert(err?.response?.data?.message || 'Lá»—i khi xÃ³a lá»›p');
       setConfirmDelete(null);
     } finally {
       setActionLoading(false);
@@ -628,8 +628,8 @@ export default function ClassesPage() {
   return (
     <div className="page-wrapper">
       <PageHeader
-        title="Quản lý lớp học"
-        subtitle="Thêm, chỉnh sửa, xóa lớp học"
+        title="Quáº£n lÃ½ lá»›p há»c"
+        subtitle="ThÃªm, chá»‰nh sá»­a, xÃ³a lá»›p há»c"
         actions={
           <>
             <button className="btn btn-secondary" onClick={() => setImportModalOpen(true)} disabled={loading}>
@@ -637,11 +637,11 @@ export default function ClassesPage() {
               Import L?p
             </button><button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
               <IconRefresh />
-              Làm mới
+              LÃ m má»›i
             </button>
             <button className="btn btn-primary" onClick={handleAddClass}>
               <IconPlus />
-              Thêm lớp
+              ThÃªm lá»›p
             </button>
           </>
         }
@@ -650,11 +650,11 @@ export default function ClassesPage() {
       <div className="card">
         <div className="section-toolbar">
           <div>
-            <div className="card__title">Danh sách lớp học</div>
-            <div className="card__subtitle">Tìm theo mã lớp, tên lớp, GV chủ nhiệm</div>
+            <div className="card__title">Danh sÃ¡ch lá»›p há»c</div>
+            <div className="card__subtitle">TÃ¬m theo mÃ£ lá»›p, tÃªn lá»›p, GV chá»§ nhiá»‡m</div>
           </div>
           <div className="section-toolbar__meta">
-            {loading ? '...' : `Đang hiển thị ${sortedClasses.length}/${classes.length} lớp`}
+            {loading ? '...' : `Äang hiá»ƒn thá»‹ ${sortedClasses.length}/${classes.length} lá»›p`}
           </div>
         </div>
 
@@ -666,7 +666,7 @@ export default function ClassesPage() {
             <input
               className="input"
               type="text"
-              placeholder="Tìm theo mã lớp, tên lớp, GV chủ nhiệm..."
+              placeholder="TÃ¬m theo mÃ£ lá»›p, tÃªn lá»›p, GV chá»§ nhiá»‡m..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
@@ -677,7 +677,7 @@ export default function ClassesPage() {
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
           >
-            <option value="ALL">Tất cả khoa</option>
+            <option value="ALL">Táº¥t cáº£ khoa</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.id}>{dept.department_name}</option>
             ))}
@@ -688,44 +688,44 @@ export default function ClassesPage() {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
-            <option value="name-asc">Tên lớp A → Z</option>
-            <option value="name-desc">Tên lớp Z → A</option>
-            <option value="code-asc">Mã lớp A → Z</option>
-            <option value="code-desc">Mã lớp Z → A</option>
-            <option value="newest">Mới nhất</option>
-            <option value="oldest">Cũ nhất</option>
+            <option value="name-asc">TÃªn lá»›p A â†’ Z</option>
+            <option value="name-desc">TÃªn lá»›p Z â†’ A</option>
+            <option value="code-asc">MÃ£ lá»›p A â†’ Z</option>
+            <option value="code-desc">MÃ£ lá»›p Z â†’ A</option>
+            <option value="newest">Má»›i nháº¥t</option>
+            <option value="oldest">CÅ© nháº¥t</option>
           </select>
 
           <button className="btn btn-secondary" onClick={() => { setKeyword(''); setDepartmentFilter('ALL'); setSortBy('name-asc'); }}>
-            Xóa bộ lọc
+            XÃ³a bá»™ lá»c
           </button>
         </div>
 
         {loading ? (
           <div className="loading loading--flex">
             <div className="loading__spinner" />
-            Đang tải danh sách lớp học...
+            Äang táº£i danh sÃ¡ch lá»›p há»c...
           </div>
         ) : error ? (
           <EmptyPanel
             icon={<IconAlert />}
-            title="Không thể tải dữ liệu"
+            title="KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u"
             description={error}
             actions={
               <button className="btn btn-primary" onClick={fetchData}>
-                Thử lại
+                Thá»­ láº¡i
               </button>
             }
           />
         ) : classes.length === 0 ? (
           <EmptyPanel
             icon={<IconUsers />}
-            title="Chưa có lớp nào"
-            description="Hãy thêm lớp mới để bắt đầu quản lý."
+            title="ChÆ°a cÃ³ lá»›p nÃ o"
+            description="HÃ£y thÃªm lá»›p má»›i Ä‘á»ƒ báº¯t Ä‘áº§u quáº£n lÃ½."
             actions={
               <button className="btn btn-primary" onClick={handleAddClass}>
                 <IconPlus />
-                Thêm lớp
+                ThÃªm lá»›p
               </button>
             }
           />
@@ -734,13 +734,13 @@ export default function ClassesPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Mã lớp</th>
-                  <th>Tên lớp</th>
+                  <th>MÃ£ lá»›p</th>
+                  <th>TÃªn lá»›p</th>
                   <th>Khoa</th>
-                  <th>Năm học</th>
-                  <th>GV chủ nhiệm</th>
-                  <th>Ngày tạo</th>
-                  <th>Hành động</th>
+                  <th>NÄƒm há»c</th>
+                  <th>GV chá»§ nhiá»‡m</th>
+                  <th>NgÃ y táº¡o</th>
+                  <th>HÃ nh Ä‘á»™ng</th>
                 </tr>
               </thead>
               <tbody>
@@ -763,14 +763,14 @@ export default function ClassesPage() {
                         <button
                           className="btn btn-sm btn-secondary"
                           onClick={() => handleEditClass(cls)}
-                          title="Chỉnh sửa"
+                          title="Chá»‰nh sá»­a"
                         >
                           <IconEdit />
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleConfirmDelete(cls)}
-                          title="Xóa"
+                          title="XÃ³a"
                         >
                           <IconTrash />
                         </button>
@@ -789,7 +789,7 @@ export default function ClassesPage() {
                 totalItems={sortedClasses.length}
                 pageStart={pageStart}
                 pageEnd={pageEnd}
-                itemName="lớp"
+                itemName="lá»›p"
               />
             ) : null}
           </div>
