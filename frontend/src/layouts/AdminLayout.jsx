@@ -39,11 +39,20 @@ const NAV_SECTIONS = [
   },
 ];
 
+const IconMenu = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
 export default function AdminLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const user      = JSON.parse(localStorage.getItem('user') || '{}');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
@@ -62,6 +71,11 @@ export default function AdminLayout() {
     setSidebarCollapsed(next);
     localStorage.setItem('sidebarCollapsed', next ? '1' : '0');
   };
+
+  // Close mobile sidebar when route changes
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -90,7 +104,12 @@ export default function AdminLayout() {
   const currentPage = allItems.find(i => isActive(i))?.label ?? 'Hệ thống';
 
   return (
-    <div className={`app-shell ${sidebarCollapsed ? 'app-shell--sidebar-collapsed' : ''}`}>
+    <div className={`app-shell ${sidebarCollapsed ? 'app-shell--sidebar-collapsed' : ''} ${mobileSidebarOpen ? 'app-shell--mobile-sidebar-open' : ''}`}>
+
+      {/* ── Mobile sidebar overlay ── */}
+      {mobileSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
+      )}
 
       {/* ── Sidebar ──────────────────────────────────────────── */}
       <aside className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`}>
@@ -156,14 +175,24 @@ export default function AdminLayout() {
         {/* Topbar — Wieldy style */}
         <header className="topbar">
           <div className="topbar__left">
+            {/* Desktop: collapse toggle */}
             <button
               type="button"
-              className={`topbar__sidebar-toggle ${sidebarCollapsed ? 'topbar__sidebar-toggle--collapsed' : ''}`}
+              className={`topbar__sidebar-toggle topbar__sidebar-toggle--desktop ${sidebarCollapsed ? 'topbar__sidebar-toggle--collapsed' : ''}`}
               onClick={toggleSidebar}
               title={sidebarCollapsed ? 'Mở sidebar' : 'Thu gọn sidebar'}
               aria-label={sidebarCollapsed ? 'Mở sidebar' : 'Thu gọn sidebar'}
             >
               <IconChevron />
+            </button>
+            {/* Mobile: hamburger menu */}
+            <button
+              type="button"
+              className="topbar__sidebar-toggle topbar__sidebar-toggle--mobile"
+              onClick={() => setMobileSidebarOpen(prev => !prev)}
+              aria-label="Menu"
+            >
+              <IconMenu />
             </button>
           </div>
 

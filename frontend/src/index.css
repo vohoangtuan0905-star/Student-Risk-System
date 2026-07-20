@@ -4388,3 +4388,324 @@ input, select, textarea { font-family: inherit; }
   color: #b91c1c !important;
   font-weight: 600;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — Complete overhaul
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Mobile hamburger: hidden on desktop ── */
+.topbar__sidebar-toggle--mobile { display: none; }
+
+/* ── Sidebar overlay ── */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ═════ Tablet ≤ 1024px ═════ */
+@media (max-width: 1024px) {
+  .stats-grid        { grid-template-columns: repeat(2, 1fr); }
+  .wield-stats-grid  { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-split   { grid-template-columns: 1fr; }
+
+  .topbar__search { width: 200px; }
+}
+
+/* ═════ Mobile ≤ 768px ═════ */
+@media (max-width: 768px) {
+
+  /* ── Sidebar: hidden by default, slide from left as overlay ── */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    box-shadow: none;
+  }
+
+  /* When mobile sidebar is open */
+  .app-shell--mobile-sidebar-open .sidebar {
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+    box-shadow: 8px 0 32px rgba(0,0,0,0.3);
+  }
+
+  /* Make sure desktop-collapsed state doesn't interfere on mobile */
+  .app-shell--sidebar-collapsed .sidebar {
+    width: var(--sidebar-width);
+  }
+  .app-shell--sidebar-collapsed .sidebar__brand-text,
+  .app-shell--sidebar-collapsed .sidebar__user-info,
+  .app-shell--sidebar-collapsed .sidebar__section-label,
+  .app-shell--sidebar-collapsed .sidebar__link-text,
+  .app-shell--sidebar-collapsed .sidebar__link-dot {
+    display: flex;
+  }
+  .app-shell--sidebar-collapsed .sidebar__profile {
+    justify-content: flex-start;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .app-shell--sidebar-collapsed .sidebar__link {
+    justify-content: flex-start;
+    gap: 10px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .app-shell--sidebar-collapsed .sidebar__link.active::before {
+    left: 0;
+  }
+
+  /* Dark overlay behind sidebar */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    animation: fadeIn 0.2s ease;
+  }
+
+  /* Main content: no left margin on mobile */
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  /* ── Topbar: swap buttons ── */
+  .topbar__sidebar-toggle--desktop { display: none !important; }
+  .topbar__sidebar-toggle--mobile  { display: inline-flex !important; }
+
+  .topbar {
+    padding: 0 12px;
+    height: 56px;
+  }
+
+  /* Hide user info text on mobile, keep avatar */
+  .topbar__user-info { display: none; }
+  .topbar__chevron   { display: none; }
+
+  /* ── Breadcrumb bar: smaller padding ── */
+  .breadcrumb-bar {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  /* ── Page wrapper ── */
+  .page-wrapper {
+    padding: 12px;
+    gap: 14px;
+  }
+
+  /* ── Page header: stack vertically ── */
+  .page-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+  }
+
+  .page-header__actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .page-header__actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  /* ── Stats grid: single column ── */
+  .stats-grid       { grid-template-columns: 1fr; gap: 10px; }
+  .wield-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  /* ── Cards: tighter padding ── */
+  .card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .card__title { font-size: 14px; }
+
+  /* ── Section toolbar: stack on mobile ── */
+  .section-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .section-toolbar__meta {
+    align-self: flex-end;
+  }
+
+  /* ── Tables: ensure horizontal scroll, make min-width smaller ── */
+  .table-wrapper {
+    border-radius: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 640px;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .action-cell {
+    gap: 4px;
+  }
+
+  .action-cell .btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  /* ── Filter bar: single column ── */
+  .filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-bar--flex {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .filter-bar__search {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* ── Modals: nearly full-width on mobile ── */
+  .modal-overlay > .modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .modal-overlay > .modal.modal--small {
+    width: calc(100vw - 16px);
+  }
+
+  .modal-header {
+    padding-bottom: 12px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  /* ── Badges: slightly smaller ── */
+  .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  /* ── Pagination: stack ── */
+  .table-pagination {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  /* ── Detail info grid ── */
+  .detail-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ── Chart grid ── */
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ── Login card ── */
+  .login-card {
+    padding: 24px 16px;
+    margin: 16px;
+  }
+
+  /* ── Not found card ── */
+  .not-found-card {
+    padding: 24px 16px;
+  }
+
+  /* ── Import type cards ── */
+  .import-type-card {
+    padding: 12px;
+  }
+
+  /* ── Summary strip: stack ── */
+  .summary-strip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* ── Topbar search: full width ── */
+  .topbar__search {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+/* ═════ Small phone ≤ 480px ═════ */
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 18px;
+  }
+
+  .wield-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header__actions .btn {
+    font-size: 11px;
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .page-header__actions .btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Pagination component */
+  .pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .pagination .btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  /* Profile modal: single column */
+  .modal-body div[style*="grid-template-columns"] {
+    display: flex !important;
+    flex-direction: column;
+    gap: 8px !important;
+  }
+}
