@@ -18,6 +18,9 @@ const verifyToken = require('./middleware/authMiddleware');
 const { requireAdmin } = require('./middleware/roleMiddleware');
 
 const app = express();
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 const net = require('net');
 
 app.get('/debug-db', (req, res) => {
