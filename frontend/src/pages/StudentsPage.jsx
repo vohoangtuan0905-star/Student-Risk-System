@@ -736,21 +736,43 @@ export default function StudentsPage() {
       const previewRows = Array.isArray(res.data?.previewRows) ? res.data.previewRows : [];
 
       const autoPick = (targets) => {
-        const targetSet = targets.map((item) => item.toLowerCase());
-        return columns.find((col) => targetSet.includes(String(col).toLowerCase())) || '';
+        const targetSet = targets.map((item) => item.toLowerCase().trim());
+        // First try exact match (case-insensitive)
+        const exact = columns.find((col) => targetSet.includes(String(col).toLowerCase().trim()));
+        if (exact) return exact;
+        // Then try partial match: column contains one of the targets or vice versa
+        return columns.find((col) => {
+          const colLower = String(col).toLowerCase().trim();
+          return targetSet.some((t) => colLower.includes(t) || t.includes(colLower));
+        }) || '';
       };
 
       setImportColumns(columns);
       setImportPreview(previewRows);
-      setImportMapping((prev) => ({
-        ...prev,
-        semester_no: prev.semester_no || autoPick(['semester_no', 'semester', 'hoc ky', 'học kỳ', 'hk']),
-        academic_year: prev.academic_year || autoPick(['academic_year', 'nam hoc', 'năm học', 'nam_hoc']),
-        student_code: prev.student_code || autoPick(['student_code', 'ma_sv', 'mã sv', 'mã sinh viên']),
-        full_name: prev.full_name || autoPick(['full_name', 'ho ten', 'họ tên', 'ten']),
-        class_code: prev.class_code || autoPick(['class_code', 'ma lop', 'mã lớp', 'lop']),
-        class_name: prev.class_name || autoPick(['class_name', 'ten lop', 'tên lớp'])
-      }));
+      setImportMapping({
+        // Học kỳ & Năm học (cho import kết quả)
+        semester_no: autoPick(['học kỳ', 'hoc ky', 'semester_no', 'semester', 'hk']),
+        academic_year: autoPick(['năm học', 'nam hoc', 'academic_year', 'nam_hoc']),
+        // Thông tin bắt buộc
+        student_code: autoPick(['mã sv', 'ma sv', 'student_code', 'mã sinh viên', 'ma_sv', 'masv', 'mssv']),
+        full_name: autoPick(['họ tên', 'ho ten', 'full_name', 'họ và tên', 'ho va ten']),
+        class_code: autoPick(['mã lớp', 'ma lop', 'class_code', 'ma_lop']),
+        class_name: autoPick(['tên lớp', 'ten lop', 'class_name', 'ten_lop']),
+        // Thông tin cá nhân (import info)
+        gender: autoPick(['giới tính', 'gioi tinh', 'gender', 'gioi_tinh']),
+        date_of_birth: autoPick(['ngày sinh', 'ngay sinh', 'date_of_birth', 'ngay_sinh']),
+        email: autoPick(['email', 'e-mail']),
+        phone: autoPick(['điện thoại', 'dien thoai', 'phone', 'sdt', 'số điện thoại']),
+        address: autoPick(['địa chỉ', 'dia chi', 'address', 'dia_chi']),
+        enrollment_year: autoPick(['năm nhập học', 'nam nhap hoc', 'enrollment_year', 'nam_nhap_hoc']),
+        note: autoPick(['ghi chú', 'ghi chu', 'note', 'notes']),
+        // Kết quả học tập (import results)
+        gpa: autoPick(['gpa', 'điểm tb', 'diem tb', 'điểm trung bình']),
+        absences: autoPick(['số buổi vắng', 'so buoi vang', 'absences', 'vắng', 'vang']),
+        tuition_debt: autoPick(['nợ học phí', 'no hoc phi', 'tuition_debt', 'học phí']),
+        scholarship: autoPick(['học bổng', 'hoc bong', 'scholarship']),
+        actual_status: autoPick(['trạng thái', 'trang thai', 'actual_status', 'status']),
+      });
       setImportStep(2);
     } catch (err) {
       setImportError(
@@ -777,7 +799,7 @@ export default function StudentsPage() {
     }
 
     if (!importMapping.student_code || !importMapping.full_name || (!importMapping.class_code && !importMapping.class_name)) {
-      setImportError('Vui lòng map đủ student_code, full_name và class_code/class_name.');
+      setImportError('Vui lòng ghép cột cho: Mã sinh viên, Họ tên và Mã lớp (hoặc Tên lớp).');
       return;
     }
 

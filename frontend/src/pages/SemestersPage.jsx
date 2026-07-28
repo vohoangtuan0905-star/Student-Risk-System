@@ -104,7 +104,7 @@ function getSemesterShortLabel(semesterNo) {
   const value = Number(semesterNo);
   if (value === 1) return 'HK1';
   if (value === 2) return 'HK2';
-  if (value === 3) return 'HKHe';
+  if (value === 3) return 'HK3';
   return semesterNo ?? '-';
 }
 
@@ -492,9 +492,9 @@ export default function SemestersPage() {
                 value={formData.semester_no}
                 onChange={(e) => setFormData({ ...formData, semester_no: e.target.value })}
               >
-                <option value="1">HK1</option>
-                <option value="2">HK2</option>
-                <option value="3">HKHe</option>
+                <option value="1">Học Kỳ 1</option>
+                <option value="2">Học Kỳ 2</option>
+                <option value="3">Học Kỳ 3</option>
               </select>
             </div>
 
