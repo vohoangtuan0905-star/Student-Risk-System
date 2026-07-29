@@ -324,7 +324,7 @@ function ConfirmDeleteModal({ isOpen, userName, onConfirm, onCancel, loading }) 
 }
 
 export default function UsersPage() {
-  const MAX_HOMEROOM_CLASSES_PER_TEACHER = 2;
+  // Không giới hạn số lớp chủ nhiệm - 1 giảng viên có thể phụ trách nhiều lớp
   const [users, setUsers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -452,7 +452,7 @@ export default function UsersPage() {
     return (
       <div>
         <div className="mono" style={{ fontWeight: 600 }}>
-          {classCount}/{MAX_HOMEROOM_CLASSES_PER_TEACHER} lớp
+          {classCount} lớp
         </div>
         <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>
           {classCodes.length > 0 ? classCodes.join(', ') : 'Chưa phân công'}

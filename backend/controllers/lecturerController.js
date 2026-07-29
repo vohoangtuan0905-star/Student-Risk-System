@@ -1,7 +1,7 @@
 const db = require('../config/db');
 const bcryptjs = require('bcryptjs');
 
-const MAX_HOMEROOM_CLASSES = 2;
+// Không giới hạn số lớp chủ nhiệm - 1 giảng viên có thể phụ trách nhiều lớp
 const LECTURER_CODE_PREFIX = 'GV';
 const LECTURER_CODE_PAD = 4;
 
@@ -342,12 +342,7 @@ exports.assignHomeroomClasses = async (req, res) => {
     const { id } = req.params;
     const classIds = normalizeClassIds(req.body?.class_ids || []);
 
-    if (classIds.length > MAX_HOMEROOM_CLASSES) {
-      return res.status(400).json({
-        success: false,
-        message: `Mỗi giảng viên chỉ được phụ trách tối đa ${MAX_HOMEROOM_CLASSES} lớp`,
-      });
-    }
+    // Không giới hạn số lớp - 1 giảng viên có thể phụ trách nhiều lớp
 
     await connection.beginTransaction();
 

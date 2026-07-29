@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-const MAX_HOMEROOM_CLASSES_PER_TEACHER = 2;
+// Không giới hạn số lớp chủ nhiệm - 1 giảng viên có thể phụ trách nhiều lớp
 
 async function validateHomeroomTeacherAssignment(homeroomTeacherId, excludeClassId = null) {
     if (!homeroomTeacherId) {
@@ -28,24 +28,7 @@ async function validateHomeroomTeacherAssignment(homeroomTeacherId, excludeClass
         return { ok: false, status: 400, message: 'Giảng viên đã bị vô hiệu hóa tài khoản' };
     }
 
-    let countSql = `SELECT COUNT(*) AS total FROM classes WHERE homeroom_teacher_id = ?`;
-    const countParams = [homeroomTeacherId];
-
-    if (excludeClassId) {
-        countSql += ` AND id <> ?`;
-        countParams.push(excludeClassId);
-    }
-
-    const [countRows] = await db.query(countSql, countParams);
-    const assignedCount = Number(countRows[0]?.total || 0);
-
-    if (assignedCount >= MAX_HOMEROOM_CLASSES_PER_TEACHER) {
-        return {
-            ok: false,
-            status: 400,
-            message: `Mỗi giảng viên chỉ được chủ nhiệm tối đa ${MAX_HOMEROOM_CLASSES_PER_TEACHER} lớp`
-        };
-    }
+    // Không giới hạn số lớp - 1 giảng viên có thể phụ trách nhiều lớp
 
     return { ok: true };
 }

@@ -4,7 +4,7 @@ import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
 import * as XLSX from 'xlsx';
 
-const MAX_HOMEROOM_CLASSES = 2;
+// Không giới hạn số lớp chủ nhiệm - 1 giảng viên có thể phụ trách nhiều lớp
 
 const IconUsers = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -250,9 +250,6 @@ function AssignClassesModal({ isOpen, lecturer, classes, onClose, onSave, loadin
       if (exists) {
         return prev.filter((id) => id !== classId);
       }
-      if (prev.length >= MAX_HOMEROOM_CLASSES) {
-        return prev;
-      }
       return [...prev, classId];
     });
   };
@@ -272,7 +269,7 @@ function AssignClassesModal({ isOpen, lecturer, classes, onClose, onSave, loadin
 
         <form onSubmit={handleSubmit} className="modal-body">
           <div className="card__subtitle" style={{ marginBottom: 10 }}>
-            Chọn tối đa {MAX_HOMEROOM_CLASSES} lớp. Đang chọn {selectedClassIds.length}/{MAX_HOMEROOM_CLASSES}.
+            Đang chọn {selectedClassIds.length} lớp.
           </div>
 
           <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 10, padding: 10 }}>
@@ -281,7 +278,7 @@ function AssignClassesModal({ isOpen, lecturer, classes, onClose, onSave, loadin
             ) : classOptions.map((cls) => {
               const clsId = Number(cls.id);
               const checked = selectedClassIds.includes(clsId);
-              const disabled = !checked && selectedClassIds.length >= MAX_HOMEROOM_CLASSES;
+              const disabled = false;
               const isCurrent = currentIds.has(clsId);
 
               return (
@@ -389,7 +386,7 @@ export default function LecturersPage() {
 
   const stats = useMemo(() => {
     const active = lecturers.filter((item) => Number(item.is_active) === 1).length;
-    const fullyAssigned = lecturers.filter((item) => Number(item.homeroom_class_count || 0) >= MAX_HOMEROOM_CLASSES).length;
+    const fullyAssigned = lecturers.filter((item) => Number(item.homeroom_class_count || 0) > 0).length;
     return {
       total: lecturers.length,
       active,
@@ -492,11 +489,11 @@ export default function LecturersPage() {
 
     if (classCount === 1) {
       statusClass = 'badge-warning';
-      statusText = 'Đang phụ trách 1/2';
+      statusText = 'Phụ trách 1 lớp';
     }
-    if (classCount >= MAX_HOMEROOM_CLASSES) {
+    if (classCount >= 2) {
       statusClass = 'badge-success';
-      statusText = `Đủ ${MAX_HOMEROOM_CLASSES}/${MAX_HOMEROOM_CLASSES}`;
+      statusText = `Phụ trách ${classCount} lớp`;
     }
 
     const homeroomClasses = Array.isArray(lecturer.homeroom_classes) ? lecturer.homeroom_classes : [];
@@ -551,7 +548,7 @@ export default function LecturersPage() {
     <div className="page-wrapper">
       <PageHeader
         title="Quản lý giảng viên"
-        subtitle="CRUD giảng viên và phân công mỗi giảng viên phụ trách tối đa 2 lớp"
+        subtitle="CRUD giảng viên và phân công mỗi giảng viên phụ trách nhiều lớp"
         actions={(
           <>
             <button className="btn btn-secondary" onClick={() => { resetImport(); setImportOpen(true); }}>
@@ -573,7 +570,7 @@ export default function LecturersPage() {
       <div className="stats-grid">
         <div className="stat-card stat-card--blue"><div className="stat-card__icon stat-card__icon--blue"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.total}</div><div className="stat-card__label">Tổng giảng viên</div></div></div>
         <div className="stat-card stat-card--green"><div className="stat-card__icon stat-card__icon--green"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.active}</div><div className="stat-card__label">Đang hoạt động</div></div></div>
-        <div className="stat-card stat-card--yellow"><div className="stat-card__icon stat-card__icon--yellow"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.fullyAssigned}</div><div className="stat-card__label">Đủ 2 lớp chủ nhiệm</div></div></div>
+        <div className="stat-card stat-card--yellow"><div className="stat-card__icon stat-card__icon--yellow"><IconUsers /></div><div className="stat-card__body"><div className="stat-card__value">{stats.fullyAssigned}</div><div className="stat-card__label">Đã có lớp chủ nhiệm</div></div></div>
       </div>
 
       <div className="card">
