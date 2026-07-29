@@ -1,17 +1,18 @@
 {
   "model_name": "LogisticRegression",
   "data_sources": {
+    "database": 16795,
     "kaggle": 4424
   },
-  "total_samples": 4424,
-  "accuracy": 0.8569277108433735,
-  "precision": 0.7484276729559748,
-  "recall": 0.8360655737704918,
-  "f1_score": 0.7898230088495575,
-  "roc_auc": 0.9170775640909008,
-  "cv_f1_mean": 0.7713023006577735,
-  "cv_f1_std": 0.001982805620024774,
-  "false_negative": 70,
-  "false_positive": 120,
-  "false_negative_rate": 0.16393442622950818
+  "total_samples": 21219,
+  "accuracy": 0.8223374175306315,
+  "precision": 0.3593220338983051,
+  "recall": 0.5306633291614519,
+  "f1_score": 0.4284992420414351,
+  "roc_auc": 0.7305481996199219,
+  "cv_f1_mean": 0.43917881868521097,
+  "cv_f1_std": 0.013291167945613929,
+  "false_negative": 375,
+  "false_positive": 756,
+  "false_negative_rate": 0.4693366708385482
 }

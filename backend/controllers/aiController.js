@@ -3,6 +3,9 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const db = require('../config/db');
 
+// Trên Linux/Render dùng 'python3', trên Windows dùng 'python'
+const PYTHON_CMD = process.platform === 'win32' ? 'python' : 'python3';
+
 const FEATURE_KEY_ALIASES = {
   gender: ['gender', 'gioi_tinh', 'gioitinh', 'phai', 'sex'],
   age_at_enrollment: ['age_at_enrollment', 'age', 'tuoi_nhap_hoc', 'tuoinhaphoc', 'tuoi_vao_hoc', 'tuoivaohoc'],
@@ -59,7 +62,7 @@ function runPythonScript(scriptName, payload) {
 
       fs.writeFileSync(tempInputPath, JSON.stringify(payload, null, 2), 'utf-8');
 
-      const pythonProcess = spawn('python', [pythonScriptPath, tempInputPath], {
+      const pythonProcess = spawn(PYTHON_CMD, [pythonScriptPath, tempInputPath], {
         cwd: aiCorePath
       });
 
@@ -475,7 +478,7 @@ exports.retrainModel = async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, NOW(), ?)
     `, [
       requestedByUserId,
-      'kaggle+database',
+      'local_mysql',
       'LogisticRegression',
       'running',
       oldModelVersionId,
@@ -488,7 +491,7 @@ exports.retrainModel = async (req, res) => {
     const aiCorePath = path.join(__dirname, '..', '..', 'ai_core');
     const pythonScriptPath = path.join(aiCorePath, 'retrain_best_model.py');
 
-    const pythonProcess = spawn('python', [pythonScriptPath], {
+    const pythonProcess = spawn(PYTHON_CMD, [pythonScriptPath], {
       cwd: aiCorePath
     });
 

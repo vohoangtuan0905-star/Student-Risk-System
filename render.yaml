@@ -4,9 +4,11 @@ services:
     env: node
     region: singapore
     plan: free
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: node server.js
+    rootDir: ./
+    buildCommand: |
+      cd backend && npm install &&
+      pip3 install --user scikit-learn joblib pandas numpy matplotlib mysql-connector-python python-dotenv
+    startCommand: cd backend && node server.js
     envVars:
       - key: NODE_ENV
         value: production
