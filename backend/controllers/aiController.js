@@ -506,12 +506,6 @@ exports.retrainModel = async (req, res) => {
       errorOutput += data.toString();
     });
 
-    // TRẢ VỀ KẾT QUẢ NGAY LẬP TỨC CHO CLIENT ĐỂ TRÁNH TIMEOUT
-    res.json({
-      success: true,
-      message: 'Tiến trình huấn luyện (Retrain) đã bắt đầu chạy ngầm trên server. Vui lòng chờ và tải lại trang (F5) sau khoảng 1-2 phút để cập nhật.'
-    });
-
     pythonProcess.on('close', async (code) => {
       try {
         if (code !== 0) {
@@ -523,8 +517,11 @@ exports.retrainModel = async (req, res) => {
             WHERE id = ?
           `, [errorOutput || 'Retrain failed', retrainJobId]);
 
-          console.error("Retrain failed with code", code, errorOutput);
-          return;
+          return res.status(500).json({
+            success: false,
+            message: 'Huấn luyện lại mô hình thất bại',
+            error: errorOutput
+          });
         }
 
         // Cắt bỏ các log info, chỉ lấy đoạn JSON ở cuối (sau dòng COMPLETED)
@@ -596,8 +593,13 @@ exports.retrainModel = async (req, res) => {
           retrainJobId
         ]);
 
-        console.log("Retrain completed successfully! Version ID:", newModelVersionId);
-        return;
+        return res.json({
+          success: true,
+          message: 'Huấn luyện lại mô hình thành công',
+          retrain_job_id: retrainJobId,
+          new_model_version_id: newModelVersionId,
+          retrain_result: retrainResult
+        });
 
       } catch (innerError) {
         console.error('retrainModel inner error:', innerError);
@@ -610,7 +612,11 @@ exports.retrainModel = async (req, res) => {
           WHERE id = ?
         `, [innerError.message, retrainJobId]);
 
-        return;
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi xử lý kết quả retrain',
+          error: innerError.message
+        });
       }
     });
 
