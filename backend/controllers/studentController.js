@@ -943,11 +943,15 @@ const importStudentInfo = async (req, res) => {
           updateValues.push(String(rawNote).trim());
         }
 
-        await conn.query(
-          `UPDATE students SET ${updateFields.join(', ')} WHERE id = ?`,
-          [...updateValues, existingId]
-        );
-        updatedCount += 1;
+        try {
+          await conn.query(
+            `UPDATE students SET ${updateFields.join(', ')} WHERE id = ?`,
+            [...updateValues, existingId]
+          );
+          updatedCount += 1;
+        } catch (err) {
+          errors.push({ row: rowIndex + 1, message: err?.message || 'Lỗi khi cập nhật sinh viên' });
+        }
       } else {
         try {
           await conn.query(
@@ -961,7 +965,7 @@ const importStudentInfo = async (req, res) => {
               fullName,
               parseExcelDate(rawDateOfBirth) || '2000-01-01',
               gender || 'Other',
-              String(rawEmail || '').trim() || null,
+              String(rawEmail || '').trim() || `${studentCode.toLowerCase()}@student.edu.vn`,
               String(rawPhone || '').trim() || null,
               String(rawAddress || '').trim() || null,
               classInfo.department_id,
@@ -1222,15 +1226,19 @@ const importStudents = async (req, res) => {
           updateValues.push(String(rawNote).trim());
         }
 
-        await conn.query(
-          `
-            UPDATE students
-            SET ${updateFields.join(', ')}
-            WHERE id = ?
-          `,
-          [...updateValues, existingId]
-        );
-        updatedCount += 1;
+        try {
+          await conn.query(
+            `
+              UPDATE students
+              SET ${updateFields.join(', ')}
+              WHERE id = ?
+            `,
+            [...updateValues, existingId]
+          );
+          updatedCount += 1;
+        } catch (err) {
+          errors.push({ row: rowIndex + 1, message: err?.message || 'Lỗi khi cập nhật sinh viên' });
+        }
 
         const hasAcademicInput =
           (mapping.gpa && hasValue(rawGpa)) ||
@@ -1281,10 +1289,14 @@ const importStudents = async (req, res) => {
             }
 
             if (recordUpdateFields.length > 0) {
-              await conn.query(
-                `UPDATE student_academic_records SET ${recordUpdateFields.join(', ')} WHERE id = ?`,
-                [...recordUpdateValues, recordRows[0].id]
-              );
+              try {
+                await conn.query(
+                  `UPDATE student_academic_records SET ${recordUpdateFields.join(', ')} WHERE id = ?`,
+                  [...recordUpdateValues, recordRows[0].id]
+                );
+              } catch (err) {
+                errors.push({ row: rowIndex + 1, message: err?.message || 'Lỗi khi cập nhật điểm sinh viên' });
+              }
             }
           } else {
             await conn.query(
@@ -1329,7 +1341,7 @@ const importStudents = async (req, res) => {
               payload.full_name,
               payload.date_of_birth,
               payload.gender,
-              payload.email,
+              payload.email || `${payload.student_code.toLowerCase()}@student.edu.vn`,
               payload.phone,
               payload.address,
               payload.department_id,
