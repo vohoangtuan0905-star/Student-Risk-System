@@ -915,8 +915,11 @@ const importStudentInfo = async (req, res) => {
         const updateValues = [fullName, classInfo.department_id, classInfo.id];
 
         if (mapping.date_of_birth && hasText(rawDateOfBirth)) {
-          updateFields.push('date_of_birth = ?');
-          updateValues.push(parseExcelDate(rawDateOfBirth));
+          const parsedDob = parseExcelDate(rawDateOfBirth);
+          if (parsedDob) {
+            updateFields.push('date_of_birth = ?');
+            updateValues.push(parsedDob);
+          }
         }
         if (mapping.gender && hasText(rawGender) && gender) {
           updateFields.push('gender = ?');
@@ -1167,8 +1170,11 @@ const importStudents = async (req, res) => {
         const updateValues = [payload.full_name, payload.department_id, payload.class_id];
 
         if (mapping.date_of_birth && hasText(rawDateOfBirth)) {
-          updateFields.push('date_of_birth = ?');
-          updateValues.push(parseExcelDate(rawDateOfBirth));
+          const parsedDob = parseExcelDate(rawDateOfBirth);
+          if (parsedDob) {
+            updateFields.push('date_of_birth = ?');
+            updateValues.push(parsedDob);
+          }
         }
 
         if (mapping.gender && hasText(rawGender) && gender) {
