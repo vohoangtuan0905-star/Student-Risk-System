@@ -290,6 +290,14 @@ exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Prevent admin from deleting their own account
+    if (req.user && req.user.id === parseInt(id, 10)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không thể xóa tài khoản của chính bạn'
+      });
+    }
+
     // Check user exists
     const [users] = await db.query('SELECT id FROM users WHERE id = ?', [id]);
     if (users.length === 0) {

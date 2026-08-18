@@ -2,6 +2,7 @@ import Pagination from "../components/Pagination";
 import { useMemo, useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { PageHeader, EmptyPanel } from '../components/PageKit';
+import { getCurrentUser } from '../utils/roleUtils';
 
 const IconUsers = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -324,6 +325,7 @@ function ConfirmDeleteModal({ isOpen, userName, onConfirm, onCancel, loading }) 
 }
 
 export default function UsersPage() {
+  const currentUser = useMemo(() => getCurrentUser(), []);
   // Không giới hạn số lớp chủ nhiệm - 1 giảng viên có thể phụ trách nhiều lớp
   const [users, setUsers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -693,7 +695,8 @@ export default function UsersPage() {
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleConfirmDelete(usr)}
-                          title="Xóa"
+                          title={usr.id === currentUser?.id ? "Không thể xóa chính mình" : "Xóa"}
+                          disabled={usr.id === currentUser?.id}
                         >
                           <IconTrash />
                         </button>
