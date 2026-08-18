@@ -520,7 +520,7 @@ export default function StudentDetailPage() {
         </div>
       ) : null}
 
-      <div className="card">
+      <div className="card print-hidden">
         <div className="section-toolbar">
           <div>
             <div className="card__title">Hành động</div>
@@ -550,7 +550,7 @@ export default function StudentDetailPage() {
             </div>
           </div>
           <div className="chart-card__body">
-            <ResponsiveContainer>
+            <ResponsiveContainer height={300}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="semester" />
@@ -571,7 +571,7 @@ export default function StudentDetailPage() {
             </div>
           </div>
           <div className="chart-card__body">
-            <ResponsiveContainer>
+            <ResponsiveContainer height={300}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="semester" />

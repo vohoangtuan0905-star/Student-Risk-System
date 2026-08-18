@@ -4709,3 +4709,95 @@ input, select, textarea { font-family: inherit; }
     gap: 8px !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT STYLES
+═══════════════════════════════════════════════════════════ */
+@media print {
+  @page {
+    margin: 0; /* Bắt buộc margin: 0 để trình duyệt ẩn Header/Footer (Link/Tiêu đề) */
+  }
+
+  body {
+    padding: 1.5cm !important; /* Bù lại padding vì đã set margin: 0 */
+    font-size: 12px !important;
+    background: white !important;
+  }
+
+  /* Hide unnecessary elements for printing */
+  .print-hidden, 
+  .page-header__actions, 
+  .card__subtitle, 
+  .section-toolbar__meta, 
+  .page-subtitle, 
+  .stat-card__helper, 
+  .sidebar, 
+  .topbar {
+    display: none !important;
+  }
+
+  .app-shell { display: block !important; }
+  .app-content { margin-left: 0 !important; width: 100% !important; padding: 0 !important; }
+  .page-wrapper { padding: 0 !important; }
+  .page-header { margin-bottom: 10px !important; }
+
+  /* Cards */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    margin-bottom: 12px !important;
+    padding: 12px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .section-title, .card__title {
+    font-size: 15px !important;
+    margin-bottom: 4px !important;
+  }
+  .section-toolbar {
+    margin-bottom: 6px !important;
+  }
+
+  /* Basic Info Grid */
+  .detail-info-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+  .detail-info-grid > div { margin-bottom: 0 !important; }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  .stat-card {
+    padding: 10px !important;
+    border: 1px solid #ddd !important;
+  }
+  .stat-card__value {
+    font-size: 16px !important;
+    margin-top: 4px !important;
+  }
+
+  /* Charts */
+  .chart-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+    margin-bottom: 12px !important;
+  }
+  .recharts-responsive-container,
+  .chart-card__body {
+    page-break-inside: avoid !important;
+    display: block !important;
+  }
+
+  /* Table */
+  .table th, .table td {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+}

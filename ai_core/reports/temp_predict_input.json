@@ -1,11 +1,11 @@
 {
   "gender": 1,
   "age_at_enrollment": 18,
-  "gpa": 3.61,
+  "gpa": 3.02,
   "tuition_debt": 0,
-  "scholarship": 0,
+  "scholarship": 1,
   "failed_subjects": 0,
-  "credits_enrolled": 21,
-  "credits_passed": 16,
+  "credits_enrolled": 0,
+  "credits_passed": 0,
   "warning_level": 0
 }
