@@ -98,6 +98,9 @@ export default function StudentDetailPage() {
   const [predicting, setPredicting] = useState(false);
   const [error, setError] = useState('');
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = user.role === 'admin';
+
   const fetchStudentDetail = async () => {
     try {
       setLoading(true);
@@ -385,10 +388,12 @@ export default function StudentDetailPage() {
             <IconPrinter />
             In báo cáo
           </button>
-          <button className="btn btn-primary" onClick={handlePredictAgain} disabled={predicting}>
-            <IconRefresh />
-            {predicting ? 'Đang dự đoán...' : 'Dự đoán lại AI'}
-          </button>
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={handlePredictAgain} disabled={predicting}>
+              <IconRefresh />
+              {predicting ? 'Đang dự đoán...' : 'Dự đoán lại AI'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -529,10 +534,12 @@ export default function StudentDetailPage() {
         </div>
 
         <div className="action-bar">
-          <button className="btn btn-primary" onClick={handlePredictAgain} disabled={predicting || !hasAcademicData}>
-            <IconRefresh />
-            {predicting ? 'Đang dự đoán...' : 'Dự đoán lại AI'}
-          </button>
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={handlePredictAgain} disabled={predicting || !hasAcademicData}>
+              <IconRefresh />
+              {predicting ? 'Đang dự đoán...' : 'Dự đoán lại AI'}
+            </button>
+          )}
 
           <button className="btn btn-secondary" onClick={() => navigate('/students')}>
             <IconArrowLeft />
